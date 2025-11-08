@@ -2,12 +2,14 @@ import asyncio
 import time
 import websockets
 import pyaudio
+from dotenv import load_dotenv
 from audio_capture import AudioCapture
 from openai_client import OpenAIClient
 from websocket_manager import WebSocketManager
 from response_processor import ResponseProcessor
 from config import Config
 from common_logging import setup_logging
+from constants import get_error_code
 
 class VoiceAssistant:
     def __init__(self, config: Config, audio_capture: AudioCapture, openai_client: OpenAIClient,
@@ -24,7 +26,11 @@ class VoiceAssistant:
         self.min_buffer_size = config.min_buffer_size
         self.max_buffer_wait_time = config.max_buffer_wait_time
         self.buffer_ready = asyncio.Event()
+        self.resume_event = asyncio.Event()  # Event for efficient pause waiting
+        self.resume_event.set()  # Initially set (not paused)
         self.last_audio_time = 0
+        self.last_level_broadcast = 0  # Throttle audio level broadcasts
+        self.buffer_lock = asyncio.Lock()  # Protect audio buffer from race conditions
 
         self.audio_capture = audio_capture
         self.openai_client = openai_client
@@ -35,6 +41,7 @@ class VoiceAssistant:
         self.logger.info("VoiceAssistant initialized")
 
         self.process_audio_task = None
+        self.cooldown_task = None  # Track cooldown task for cancellation
         self.is_paused = False
         self._is_idle = True
         self._is_recording = False
@@ -44,15 +51,24 @@ class VoiceAssistant:
         if self.is_paused:
             return  # Already paused
         self.is_paused = True  # Set the paused flag
+        self.resume_event.clear()  # Clear event to block audio processing
+
+        # Cancel any active cooldown
+        if self.cooldown_task and not self.cooldown_task.done():
+            self.cooldown_task.cancel()
+            self.cooldown_active = False
+            self.logger.debug("Cooldown task cancelled due to pause")
+
         self.audio_capture.stop_stream()  # Stop the audio stream
         self.logger.info("Assistant paused")
 
         # If there's audio in the buffer, send it to the API
-        if self.audio_buffer:
-            await self.send_buffer_to_api()
-            # Clear the buffer and reset variables
-            self.audio_buffer = b''
-            self.buffer_ready.clear()
+        async with self.buffer_lock:  # Protect buffer access
+            if self.audio_buffer:
+                await self.send_buffer_to_api()
+                # Clear the buffer and reset variables
+                self.audio_buffer = b''
+                self.buffer_ready.clear()
 
         # Broadcast paused status
         await self.websocket_manager.broadcast_status("paused", False)
@@ -61,6 +77,7 @@ class VoiceAssistant:
         if not self.is_paused:
             return  # Already running
         self.is_paused = False  # Reset the paused flag
+        self.resume_event.set()  # Signal audio processing to continue
         self.audio_buffer = b''  # Clear the audio buffer
         self.audio_capture.reset_vad()  # Reset VAD state
         self.last_audio_time = time.time()  # Reset the last audio time
@@ -83,11 +100,12 @@ class VoiceAssistant:
             await self.openai_client.connect()
 
             self.audio_capture.select_audio_device()
-            self.audio_capture.start_stream()  # Ensure the audio stream starts
+            # Audio stream will start when user clicks "Start Listening" (in start_listening method)
             self.logger.info("Voice Assistant is ready.")
+            print("✓ Voice Assistant is ready. Waiting for frontend to start listening...\n")
             await self.websocket_manager.broadcast_status("ready", False)
 
-            self.process_audio_task = asyncio.create_task(self.process_audio())
+            # process_audio_task will be created when user clicks "Start Listening"
             api_task = asyncio.create_task(self.handle_api_responses())
 
             while True:
@@ -113,41 +131,44 @@ class VoiceAssistant:
         self.logger.info("Started audio processing")
         try:
             while self.is_running:
-                if self.is_paused:
-                    await asyncio.sleep(0.01)
-                    continue
+                # Wait for resume event if paused (efficient event-based waiting)
+                await self.resume_event.wait()
+
+                if not self.is_running:  # Check again after wait
+                    break
                 try:
                     self._is_recording = True
                     audio_chunk = await self.audio_capture.read_audio()
                     self._is_recording = False
+
+                    # Calculate and broadcast audio level for visual feedback (throttled to 10/sec)
+                    current_time = time.time()
+                    if current_time - self.last_level_broadcast >= 0.1:  # 100ms = 10 updates/sec
+                        audio_level = self.audio_capture.get_audio_level(audio_chunk)
+                        await self.websocket_manager.broadcast_audio_level(audio_level)
+                        self.last_level_broadcast = current_time
+
                     self._is_processing = True
                     is_speech = await self.audio_capture.is_speech(audio_chunk)
                     self._is_processing = False
 
-                    await self.websocket_manager.broadcast_status("listening" if is_speech else "idle", is_speech)
+                    # Status broadcasts happen only from start_listening/stop_listening
+                    # Removed redundant broadcast here to prevent race condition with stop_listening
 
-                    if is_speech:
-                        self.audio_buffer += audio_chunk
-                        self.last_audio_time = time.time()
-                        self.logger.debug(f"Speech detected. Buffer size: {len(self.audio_buffer)}")
+                    async with self.buffer_lock:  # Protect buffer access
+                        if is_speech:
+                            self.audio_buffer += audio_chunk
+                            self.last_audio_time = time.time()
+                            self.logger.debug(f"Speech detected. Buffer size: {len(self.audio_buffer)}")
 
-                        if len(self.audio_buffer) >= self.min_buffer_size:
-                            self.buffer_ready.set()
-
-                    if not is_speech and self.buffer_ready.is_set():
-                        if not self.waiting_for_response and not self.cooldown_active:
                             if len(self.audio_buffer) >= self.min_buffer_size:
-                                await self.send_buffer_to_api()
-                            else:
-                                self.logger.info("Audio buffer is too small or empty. Not sending to API.")
-                                self.audio_buffer = b""
-                                self.buffer_ready.clear()
+                                if not self.buffer_ready.is_set():
+                                    await self.websocket_manager.broadcast_debug("Speech detected, buffer ready")
+                                self.buffer_ready.set()
 
-                    # Check for timeout
-                    if time.time() - self.last_audio_time > self.max_buffer_wait_time and len(self.audio_buffer) >= self.min_buffer_size:
-                        self.logger.info("Buffer wait time exceeded. Sending available audio.")
-                        if not self.waiting_for_response and not self.cooldown_active:
-                            await self.send_buffer_to_api()
+                        # REMOVED: VAD-based and timeout-based auto-triggers
+                        # For push-to-talk: Buffer only accumulates during listening
+                        # API call is triggered ONLY when user presses spacebar (stop_listening)
 
                     await asyncio.sleep(0.01)
                 except Exception as e:
@@ -159,36 +180,43 @@ class VoiceAssistant:
             self._is_processing = False
             self.logger.info("Stopped audio processing")
 
+    def _resample_audio_sync(self, audio_buffer):
+        """Synchronous audio resampling (runs in thread pool to avoid blocking event loop)"""
+        from pydub import AudioSegment
+
+        audio_segment = AudioSegment(
+            data=audio_buffer,
+            sample_width=pyaudio.get_sample_size(self.audio_capture.format),
+            frame_rate=self.audio_capture.rate,
+            channels=self.audio_capture.channels
+        )
+        audio_segment = audio_segment.set_frame_rate(24000)
+        audio_segment = audio_segment.set_channels(1)
+        return audio_segment.raw_data
+
     async def send_buffer_to_api(self):
         if len(self.audio_buffer) == 0:
             self.logger.info("Audio buffer is empty. Not sending to API.")
             self.audio_buffer = b""
             self.buffer_ready.clear()
             return
-        
-        import io
-        from pydub import AudioSegment
 
         try:
             self.waiting_for_response = True  # Set before sending to prevent new API calls
             await self.websocket_manager.broadcast_new_response()
 
-            # Resample audio to 24000 Hz before sending to the API
-            audio_segment = AudioSegment(
-                data=self.audio_buffer,
-                sample_width=pyaudio.get_sample_size(self.audio_capture.format),
-                frame_rate=self.audio_capture.rate,
-                channels=self.audio_capture.channels
+            # Resample audio asynchronously in thread pool (non-blocking)
+            loop = asyncio.get_event_loop()
+            resampled_audio_buffer = await loop.run_in_executor(
+                None,
+                self._resample_audio_sync,
+                self.audio_buffer
             )
-            audio_segment = audio_segment.set_frame_rate(24000)
-            audio_segment = audio_segment.set_channels(1)
-            resampled_audio_buffer = audio_segment.raw_data
 
             await self.send_audio_to_api(resampled_audio_buffer)
             self.audio_buffer = b""
             self.buffer_ready.clear()
-            self.cooldown_active = True
-            asyncio.create_task(self.cooldown_timer())
+            # No cooldown - ready for next capture immediately
         except Exception as e:
             self.logger.error(f"Error in send_buffer_to_api: {str(e)}", exc_info=True)
 
@@ -202,16 +230,17 @@ class VoiceAssistant:
         self.logger.debug(f"waiting_for_response: {self.waiting_for_response}, cooldown_active: {self.cooldown_active}")
 
         try:
+            await self.websocket_manager.broadcast_debug("Sending audio to OpenAI API...")
             await self.openai_client.send_audio(buffer)
             self.api_calls_made += 1
             self.logger.info(f"API call made. Total calls: {self.api_calls_made}")
             await self.websocket_manager.broadcast_api_call_count(self.api_calls_made)
             await self.websocket_manager.broadcast_status("processing", False)
-            await self.pause()  # Automatically pause the assistant
+            # No auto-pause - keep listening for next utterance (user controls via spacebar)
             return True
         except Exception as e:
             self.logger.error(f"Error sending audio to API: {str(e)}", exc_info=True)
-            await self.websocket_manager.broadcast_error(str(e), e.__class__.__name__)
+            await self.websocket_manager.broadcast_error(str(e), get_error_code(e))
             return False
         finally:
             self.logger.debug("Exiting send_audio_to_api")
@@ -226,7 +255,24 @@ class VoiceAssistant:
         self.logger.info("Started handling API responses")
         try:
             while True:
-                response = await self.openai_client.receive_response()
+                try:
+                    # Only apply timeout when actively waiting for a response
+                    # This prevents false timeouts during normal idle periods
+                    if self.waiting_for_response:
+                        # Expecting response - use timeout to detect connection stalls
+                        response = await asyncio.wait_for(
+                            self.openai_client.receive_response(),
+                            timeout=30.0
+                        )
+                    else:
+                        # Idle - no timeout, wait indefinitely for next activity
+                        response = await self.openai_client.receive_response()
+                except asyncio.TimeoutError:
+                    # Only triggers if response expected but not received within 30s
+                    self.logger.error("API response timeout (30s) - reconnecting to OpenAI...")
+                    await self.openai_client.reset_session()
+                    await self.websocket_manager.broadcast_debug("Connection timeout - reconnecting...")
+                    continue
 
                 if not isinstance(response, dict):
                     self.logger.error(f"Invalid API response type: {type(response)}")
@@ -242,12 +288,13 @@ class VoiceAssistant:
                 await self.websocket_manager.broadcast_response(response)
 
                 if response['type'] == 'response.audio_transcript.delta':
+                    # Process delta for internal tracking (frontend gets delta via broadcast_response above)
                     delta = self.response_processor.process_transcript_delta(response.get('delta', ''))
-                    await self.websocket_manager.broadcast_transcript(delta)
-                    if self.response_processor.is_question(self.response_processor.get_full_transcript()):
-                        self.logger.debug("Question detected")
-                elif response['type'] == 'response.complete':
+                    # Duplicate broadcast removed - frontend already receives delta in 'response' message
+                    # Question detection removed - was unused dead code
+                elif response['type'] == 'response.done':
                     self.logger.info("Response complete")
+                    await self.websocket_manager.broadcast_debug("AI response received")
                     self.waiting_for_response = False
                     self.logger.debug("waiting_for_response set to False")
                     await self.websocket_manager.broadcast_status("idle", False)
@@ -271,7 +318,7 @@ class VoiceAssistant:
             self.logger.error(f"Error handling API response: {str(e)}", exc_info=True)
             self.waiting_for_response = False
             self.logger.debug("waiting_for_response set to False")
-            await self.websocket_manager.broadcast_error(str(e), e.__class__.__name__)
+            await self.websocket_manager.broadcast_error(str(e), get_error_code(e))
 
     async def reconnect_openai_client(self):
         self.logger.info("Attempting to reconnect to OpenAI API")
@@ -304,8 +351,14 @@ class VoiceAssistant:
 
     async def start_listening(self):
         if not self.is_running:
+            # Clear any stale buffered audio from before user clicked "Start Listening"
+            self.audio_buffer = b""
+            self.buffer_ready.clear()
+
             self.is_running = True
             self.logger.info("VoiceAssistant started listening")
+            print("✓ Audio processing started - now listening for speech\n")
+            await self.websocket_manager.broadcast_debug("Listening for speech...")
             # Start the audio stream
             self.audio_capture.start_stream()
             self.process_audio_task = asyncio.create_task(self.process_audio())
@@ -316,6 +369,7 @@ class VoiceAssistant:
         if self.is_running:
             self.is_running = False
             self.logger.info("VoiceAssistant stopped listening")
+
             # Cancel the process_audio task
             if self.process_audio_task:
                 self.process_audio_task.cancel()
@@ -324,6 +378,22 @@ class VoiceAssistant:
                 except asyncio.CancelledError:
                     self.logger.info("process_audio_task successfully cancelled")
                 self.process_audio_task = None
+
+            # Push-to-talk: Send buffered audio to API if buffer has content
+            async with self.buffer_lock:  # Protect buffer access
+                buffer_size = len(self.audio_buffer)
+                if buffer_size > 0:
+                    self.logger.info(f"Sending buffered audio to API (buffer size: {buffer_size} bytes)")
+                    await self.websocket_manager.broadcast_debug(f"Sending {buffer_size} bytes to API...")
+                    await self.send_buffer_to_api()
+                else:
+                    self.logger.info("No audio in buffer - nothing to send")
+                    await self.websocket_manager.broadcast_debug("No audio captured")
+
+                # Clear audio buffer and reset state
+                self.audio_buffer = b''
+                self.buffer_ready.clear()
+
             # Stop the audio stream
             self.audio_capture.stop_stream()
             # Broadcast status update
@@ -342,6 +412,9 @@ class VoiceAssistant:
             self.process_audio_task = None
 
 if __name__ == "__main__":
+    # Load environment variables from .env file
+    load_dotenv()
+
     config = Config()
     logger = setup_logging('voice_assistant')
 

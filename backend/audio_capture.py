@@ -8,11 +8,9 @@ import logging
 from common_logging import setup_logging
 import os
 import asyncio
-from pydub import AudioSegment
-import io
 
 class AudioCapture:
-    def __init__(self, config, debug_to_console=False):
+    def __init__(self, config):
         self.chunk = config.chunk
         self.format = pyaudio.paInt16
         self.channels = config.channels
@@ -31,7 +29,6 @@ class AudioCapture:
         self.speech_frames_threshold = int(0.1 * frames_per_second)  # Reduced from 0.5 to 0.3 seconds
         self.speech_frames_count = 0
 
-        # self.setup_logging(debug_to_console)
         self.logger = setup_logging('audio_capture')
         self.logger.info("AudioCapture initialized")
         self.logger.info(f"Speech frames threshold set to {self.speech_frames_threshold} frames")
@@ -39,6 +36,22 @@ class AudioCapture:
 
     def select_audio_device(self, is_speaker=False):
         self.logger.info("Selecting audio device")
+
+        # Try to auto-select system default device first
+        if not is_speaker:  # Only auto-select for input devices
+            try:
+                default_device = self.p.get_default_input_device_info()
+                self.device_index = default_device['index']
+                device_name = default_device.get('name')
+                self.logger.info(f"Auto-selected default input device: {device_name} (index {self.device_index})")
+                print(f"\n✓ Using default microphone: {device_name}")
+                print(f"  Device index: {self.device_index}\n")
+                return self.device_index
+            except (IOError, OSError) as e:
+                self.logger.warning(f"Could not auto-select default device: {e}")
+                print("\n⚠ No default microphone found. Manual selection required.\n")
+
+        # Fallback to manual selection
         print("Available audio devices:")
         devices = []
         for i in range(self.p.get_device_count()):
@@ -46,14 +59,14 @@ class AudioCapture:
             if (is_speaker and dev.get('maxOutputChannels') > 0) or (not is_speaker and dev.get('maxInputChannels') > 0):
                 devices.append((i, dev.get('name')))
                 print(f"Device {i}: {dev.get('name')}")
-        
+
         while True:
             try:
-                device_index_input = input("Enter the device index for your device: ")
+                device_index_input = input("\nEnter the device index for your device: ")
                 self.device_index = int(device_index_input)
                 dev_info = self.p.get_device_info_by_index(self.device_index)
                 if (is_speaker and dev_info.get('maxOutputChannels') > 0) or (not is_speaker and dev_info.get('maxInputChannels') > 0):
-                    print(f"Selected device: {dev_info.get('name')}")
+                    print(f"✓ Selected device: {dev_info.get('name')}\n")
                     self.logger.info(f"Audio device selected: {dev_info.get('name')}")
                     return self.device_index
                 else:
@@ -148,7 +161,23 @@ class AudioCapture:
             self.logger.error(f"Error in VAD: {str(e)}", exc_info=True)
             self.logger.debug(f"Audio segment details: length={len(audio_segment)}, first few bytes: {audio_segment[:20]}")
             return False
-        
+
+    def get_audio_level(self, audio_data):
+        """
+        Calculate audio level (0-100) from audio data for visual feedback.
+        Returns an integer between 0-100 representing the current audio input level.
+        """
+        try:
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            # Calculate RMS (Root Mean Square) volume
+            volume = np.abs(audio_array).mean()
+            # Normalize to 0-100 scale (3000 is empirical max for typical speech)
+            level = min(100, int((volume / 3000) * 100))
+            return level
+        except Exception as e:
+            self.logger.error(f"Error calculating audio level: {e}")
+            return 0
+
     def stop_stream(self):
         if self.stream is not None:
             self.logger.info("Stopping audio stream")
@@ -161,9 +190,10 @@ class AudioCapture:
 
     def reset_vad(self):
         self.speech_frames_count = 0
+        self.vad = webrtcvad.Vad(1)  # Reinitialize VAD detector
         self.stop_stream()
         # self.p.terminate()
-        self.logger.info("AudioCapture instance destroyed")
+        self.logger.info("VAD reset complete")
 
 if __name__ == "__main__":
     # This allows you to test the AudioCapture class independently
@@ -187,5 +217,3 @@ if __name__ == "__main__":
     finally:
         audio_capture.stop_stream()
         print("Audio capture stopped.")
-    def reset_vad(self):
-        self.speech_frames_count = 0

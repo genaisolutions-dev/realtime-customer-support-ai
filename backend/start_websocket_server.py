@@ -4,17 +4,30 @@ from websocket_manager import WebSocketManager
 class MockAssistant:
     def __init__(self):
         self.is_listening = False
-    
+        self.is_running = False
+        self.is_paused = False
+
     async def start_listening(self):
         print("MockAssistant: start_listening called")
         self.is_listening = True
+        self.is_running = True
 
     async def stop_listening(self):
         print("MockAssistant: stop_listening called")
         self.is_listening = False
+        self.is_running = False
+
+    async def pause(self):
+        print("MockAssistant: pause called")
+        self.is_paused = True
+
+    async def resume(self):
+        print("MockAssistant: resume called")
+        self.is_paused = False
 
     def stop(self):
         print("MockAssistant: stop called")
+        self.is_running = False
 
 async def main():
     assistant = MockAssistant()

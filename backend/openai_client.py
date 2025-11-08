@@ -6,7 +6,7 @@ import time
 from common_logging import setup_logging
 
 class OpenAIClient:
-    def __init__(self, config, debug_to_console=False):
+    def __init__(self, config):
         self.config = config
         self.api_key = self.config.api_key
         self.api_url = self.config.api_url
@@ -29,6 +29,7 @@ class OpenAIClient:
         self.last_reset_time = time.time()
         self.reset_pending = False
         self.logger.info("Connected to OpenAI API")
+        print("\n✓ Connected to OpenAI API\n")
 
     async def initialize_session(self):
         session_update = {
@@ -40,12 +41,7 @@ class OpenAIClient:
                 "voice": self.config.voice,
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
-                "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 200
-                },
+                "turn_detection": None,  # Disabled - client controls when to commit audio (push-to-talk)
                 "temperature": self.config.temperature
             }
         }
@@ -62,11 +58,9 @@ class OpenAIClient:
         return time.time() - self.last_reset_time > 600  # 10 minutes
 
     async def send_audio(self, audio_buffer):
+        # Set flag if reset needed, but don't reset during send (would lose buffer)
         if self.should_reset():
             self.reset_pending = True
-
-        if self.reset_pending:
-            await self.reset_session()
 
         if not isinstance(audio_buffer, bytes):
             self.logger.error(f"Invalid audio buffer type: {type(audio_buffer)}. Expected bytes.")
@@ -89,6 +83,14 @@ class OpenAIClient:
             }
             await self.websocket.send(json.dumps(commit_message))
             self.logger.debug("Sent commit message")
+
+            # Trigger response generation (required when turn_detection is None)
+            response_create_message = {
+                "event_id": self.generate_event_id(),
+                "type": "response.create"
+            }
+            await self.websocket.send(json.dumps(response_create_message))
+            self.logger.debug("Sent response.create message to trigger AI response")
 
         except Exception as e:
             self.logger.error(f"Error in send_audio: {str(e)}")

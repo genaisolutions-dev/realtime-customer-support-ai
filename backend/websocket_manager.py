@@ -21,12 +21,26 @@ class WebSocketManager:
         await websocket.send(json.dumps({
             'type': 'status',
             'status': 'ready',
-            'is_listening': self.assistant.is_running  # This should be False at startup
+            'is_listening': self.assistant.is_running,  # This should be False at startup
+            'is_paused': self.assistant.is_paused  # Include pause state
         }))
+        # Send config message with max_api_calls
+        if hasattr(self.assistant, 'max_api_calls'):
+            await websocket.send(json.dumps({
+                'type': 'config',
+                'max_api_calls': self.assistant.max_api_calls
+            }))
         try:
             async for message in websocket:
-                data = json.loads(message)
-                await self.process_message(data, websocket)
+                try:
+                    data = json.loads(message)
+                    await self.process_message(data, websocket)
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON received: {e}")
+                    await self.broadcast_error(f"Invalid message format: {str(e)}", "invalid_json")
+                except KeyError as e:
+                    self.logger.error(f"Missing required field in message: {e}")
+                    await self.broadcast_error(f"Missing field: {str(e)}", "missing_field")
         except websockets.exceptions.ConnectionClosed:
             self.logger.info(f"Client disconnected: {websocket.remote_address}")
         except Exception as e:
@@ -42,14 +56,13 @@ class WebSocketManager:
         if data['type'] == 'control':
             action = data['action']
             if action == 'start_listening':
+                self.logger.info("Received start_listening action")
                 await self.assistant.start_listening()
-            elif action in ['pause', 'pause_listening']:
-                await self.assistant.pause()  # Call the assistant's pause method
-                self.logger.info("Listening paused")
-                await self.broadcast_status("paused", False)  # Broadcast the pause status
-            elif action in ['resume', 'resume_listening']:
-                await self.assistant.resume()  # Call the assistant's resume method
-                self.logger.info("Listening resumed")
+                self.logger.info("Listening started")
+            elif action == 'stop_listening':
+                self.logger.info("Received stop_listening action")
+                await self.assistant.stop_listening()
+                self.logger.info("Listening stopped")
             else:
                 self.logger.warning(f"Unknown action received: {action}")
 
@@ -89,6 +102,13 @@ class WebSocketManager:
         })
         await self.broadcast(message)
 
+    async def broadcast_audio_level(self, level):
+        message = json.dumps({
+            'type': 'audio_level',
+            'level': level  # 0-100
+        })
+        await self.broadcast(message)
+
     async def broadcast_error(self, error_message, error_code=None):
         message = json.dumps({
             'type': 'error',
@@ -96,6 +116,14 @@ class WebSocketManager:
                 'message': error_message,
                 'code': error_code or 'unknown_error'
             }
+        })
+        await self.broadcast(message)
+
+    async def broadcast_debug(self, debug_message):
+        """Broadcast debug message for troubleshooting (temporary)"""
+        message = json.dumps({
+            'type': 'debug',
+            'message': debug_message
         })
         await self.broadcast(message)
 

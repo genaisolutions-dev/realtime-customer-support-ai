@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useReducer } from 'react';
 import Draggable from 'react-draggable';
 import './FloatingPrompter.css'; // Import the CSS file
 
 // --- Constants ---
 const WEBSOCKET_URL = 'ws://localhost:8000';
-const RECONNECT_DELAY_MS = 5000; // 5 seconds
-const MAX_RECONNECT_ATTEMPTS = 5;
+const PASSIVE_RECONNECT_DELAY_MS = 10000; // 10 seconds for background retry
 const INITIAL_OPACITY = 0.6;
+const MAX_STATUS_MESSAGES = 10; // Maximum number of status messages to keep
 
 // --- Helper Function ---
 const getBackgroundColorWithOpacity = (baseColor, opacity) => {
@@ -17,92 +17,173 @@ const getBackgroundColorWithOpacity = (baseColor, opacity) => {
 
 // --- Sub-components ---
 
-const PrompterHeader = React.memo(({ opacity, isMinimized, isPaused, onMinimize, onPauseResume, onClose }) => (
+const PrompterHeader = React.memo(({ opacity, isMinimized, onMinimize, onClose, connectionHealth }) => (
   <div
     className="prompter-header"
     style={{ backgroundColor: getBackgroundColorWithOpacity('rgba(50, 50, 50,', opacity * 0.9) }}
   >
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <span className="drag-handle" aria-label="Drag handle">☰</span>
+      <span className="app-title">OpenAI Virtual Teleprompter</span>
+      <ConnectionHealthIndicator connectionHealth={connectionHealth} />
     </div>
     <div className="header-controls">
       <button onClick={onMinimize} aria-label={isMinimized ? "Maximize" : "Minimize"}>
-        {isMinimized ? '🗖' : '🗕'}
-      </button>
-      <button onClick={onPauseResume} aria-label={isPaused ? "Resume Listening" : "Pause Listening"}>
-        {isPaused ? 'Resume' : 'Pause'}
+        {isMinimized ? '+' : '-'}
       </button>
       <button onClick={onClose} aria-label="Close Prompter" tabIndex="-1">
-        ✖
+        X
       </button>
     </div>
   </div>
 ));
 
-const ConnectionStatus = React.memo(({ isConnected, isConnecting, reconnectAttempts }) => {
-    if (isConnecting && reconnectAttempts > 0) { // Show attempts only during reconnection
-        return <div className="status-bar">Connecting (Attempt {reconnectAttempts})...</div>;
+const ConnectionHealthIndicator = React.memo(({ connectionHealth }) => {
+  const getHealthColor = () => {
+    switch (connectionHealth) {
+      case 'connected': return '#10b981'; // green
+      case 'connecting': return '#f59e0b'; // yellow
+      case 'disconnected': return '#ef4444'; // red
+      default: return '#6b7280'; // gray
     }
-     if (isConnecting && reconnectAttempts === 0) { // Initial connection attempt
-        return <div className="status-bar">Connecting...</div>;
+  };
+
+  const getHealthLabel = () => {
+    switch (connectionHealth) {
+      case 'connected': return 'Connected';
+      case 'connecting': return 'Connecting';
+      case 'disconnected': return 'Disconnected';
+      default: return 'Unknown';
     }
-    if (!isConnected && !isConnecting) { // Disconnected state
-        return <div className="status-bar">Disconnected. Will attempt to reconnect.</div>;
-    }
-    // Only show "Connected" if actually connected and not in a connecting/reconnecting state
-    if (isConnected && !isConnecting) {
-       return <div className="status-bar">Connected</div>;
-    }
-    return null; // Don't show anything if state is inconsistent
+  };
+
+  return (
+    <div
+      className={`connection-health-indicator ${connectionHealth}`}
+      style={{ backgroundColor: getHealthColor() }}
+      aria-label={`Connection status: ${getHealthLabel()}`}
+      title={getHealthLabel()}
+    />
+  );
 });
 
-
-const ConnectButton = React.memo(({ onClick, isConnecting }) => (
-  <button
-    className="prompter-button connect-button"
-    onClick={onClick}
-    disabled={isConnecting}
-    aria-label="Connect to Backend"
-  >
-    {isConnecting ? 'Connecting...' : 'Connect to Backend'}
-  </button>
+const LoadingSpinner = React.memo(() => (
+  <span className="loading-spinner" aria-label="Loading">⟳</span>
 ));
 
-const ListeningButton = React.memo(({ isListening, isPaused, onClick, opacity }) => (
-  <button
-    className={`prompter-button ${isListening ? 'listening-button-active' : 'listening-button-inactive'}`}
-    onClick={onClick}
-    disabled={isPaused}
-    style={{ '--bg-opacity': opacity }} // Pass opacity as CSS variable
-    aria-label={isListening ? "Stop Listening" : "Start Listening"}
-  >
-    {isListening ? 'Stop Listening' : 'Start Listening'}
-  </button>
-));
+const StatusMessageLog = React.memo(({ statusMessages, onRetry, isConnecting, connectionHealth }) => {
+  // Show retry button if disconnected (not connected and not actively connecting)
+  const showRetryButton = connectionHealth === 'disconnected' && !isConnecting;
 
-const ResponseDisplay = React.memo(({ displayedResponse, currentResponse, opacity }) => (
-  <div
-    className="response-display"
-    style={{ backgroundColor: getBackgroundColorWithOpacity('rgba(30, 30, 30,', opacity * 0.7) }}
-    aria-live="polite" // Announce changes to screen readers
-  >
-    <pre>
-      {displayedResponse}
-      {currentResponse && (
-        <>
-          {displayedResponse ? '\n\n' : ''} {/* Add spacing only if there's prior displayed text */}
-          <span className="current-response-text">{currentResponse}</span>
-        </>
+  // Only show the most recent message to keep UI clean
+  const latestMessage = statusMessages.length > 0 ? statusMessages[statusMessages.length - 1] : null;
+
+  if (!latestMessage && !showRetryButton) {
+    return null; // Hide completely if no message and no retry button
+  }
+
+  return (
+    <div className="status-message-log">
+      {latestMessage && (
+        <div className={`status-message ${latestMessage.type}`}>
+          {latestMessage.type === 'connecting' && <LoadingSpinner />}
+          <span className="status-text">{latestMessage.message}</span>
+        </div>
       )}
-    </pre>
-  </div>
-));
+      {showRetryButton && (
+        <button
+          className="retry-button"
+          onClick={onRetry}
+          disabled={isConnecting}
+          aria-label="Retry connection"
+        >
+          &#8634; Retry Connection
+        </button>
+      )}
+    </div>
+  );
+});
 
-const StatusBar = React.memo(({ apiCallCount }) => (
-  <div className="status-bar">
-    <p>API Calls Made: {apiCallCount}</p>
-  </div>
-));
+const ListeningButton = React.memo(({ isListening, isPaused, onClick, opacity, disabled }) => {
+  const isDisabled = isPaused || disabled;
+  return (
+    <button
+      className={`prompter-button ${isListening ? 'listening-button-active' : 'listening-button-inactive'} ${isDisabled ? 'disabled' : ''}`}
+      onClick={onClick}
+      disabled={isDisabled}
+      style={{ '--bg-opacity': opacity }} // Pass opacity as CSS variable
+      aria-label={isListening ? "Stop Listening" : "Start Listening"}
+      title={disabled ? "Connect to backend first" : ""}
+    >
+      {isListening ? 'Stop Listening' : 'Start Listening'}
+    </button>
+  );
+});
+
+const ResponseDisplay = React.memo(({ displayedResponse, currentResponse, opacity }) => {
+  const hasContent = displayedResponse || currentResponse;
+
+  return (
+    <div
+      className="response-display"
+      style={{ backgroundColor: getBackgroundColorWithOpacity('rgba(30, 30, 30,', opacity * 0.7) }}
+      aria-live="polite" // Announce changes to screen readers
+    >
+      {!hasContent ? (
+        <div className="response-placeholder">
+          <div>Responses will appear here...</div>
+          <div style={{ fontSize: '0.9em', marginTop: '8px', opacity: 0.7 }}>
+            Press Spacebar to start listening
+          </div>
+        </div>
+      ) : (
+        <pre>
+          {displayedResponse}
+          {currentResponse && (
+            <>
+              {displayedResponse ? '\n\n' : ''} {/* Add spacing only if there's prior displayed text */}
+              <span className="current-response-text">{currentResponse}</span>
+            </>
+          )}
+        </pre>
+      )}
+    </div>
+  );
+});
+
+const StatusBar = React.memo(({ apiCallCount, maxApiCalls }) => {
+  const displayText = maxApiCalls > 0
+    ? `${apiCallCount}/${maxApiCalls}`
+    : `${apiCallCount}${maxApiCalls === -1 ? '/∞' : ''}`;
+
+  return (
+    <div className="status-bar">
+      <p style={{ fontSize: '0.85em', opacity: 0.7 }}>
+        API Calls: {displayText}
+      </p>
+    </div>
+  );
+});
+
+const AudioLevelMeter = React.memo(({ level, isListening }) => {
+  if (!isListening) return null;
+
+  const percentage = Math.min(100, Math.max(0, level));
+  const barColor = percentage > 70 ? '#10b981' : percentage > 30 ? '#f59e0b' : '#6b7280';
+
+  return (
+    <div className="audio-level-meter">
+      <label>Microphone Level:</label>
+      <div className="audio-level-bar-container">
+        <div
+          className="audio-level-bar"
+          style={{ width: `${percentage}%`, backgroundColor: barColor }}
+        />
+      </div>
+      <span className="audio-level-text">{percentage}%</span>
+    </div>
+  );
+});
 
 const OpacitySlider = React.memo(({ opacity, onChange }) => (
   <div className="opacity-control">
@@ -134,31 +215,93 @@ const ErrorAlert = React.memo(({ error, onClose }) => (
 ));
 
 
+// --- Response State Reducer ---
+// Handles response streaming with proper state management (no stale closures)
+const responseReducer = (state, action) => {
+  switch (action.type) {
+    case 'ADD_DELTA':
+      // Append streaming delta to current response
+      return {
+        ...state,
+        currentResponse: state.currentResponse + (action.payload || '')
+      };
+    case 'COMPLETE_RESPONSE':
+      // Move current response to displayed, clear streaming buffer
+      return {
+        currentResponse: '',
+        displayedResponse: state.displayedResponse + state.currentResponse
+      };
+    case 'NEW_RESPONSE':
+      // Clear both when new response sequence starts
+      return {
+        currentResponse: '',
+        displayedResponse: ''
+      };
+    case 'CLEAR_ALL':
+      // Clear everything
+      return {
+        currentResponse: '',
+        displayedResponse: ''
+      };
+    default:
+      return state;
+  }
+};
+
 // --- Main Component ---
 
 export default function FloatingPrompter() {
-  const [isConnected, setIsConnected] = useState(false);
+  // Connection state
+  const [connectionHealth, setConnectionHealth] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected'
   const [isConnecting, setIsConnecting] = useState(false);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [statusMessages, setStatusMessages] = useState([]); // Array of {timestamp, type, message, icon}
+
+  // Assistant state
   const [apiCallCount, setApiCallCount] = useState(0);
+  const [maxApiCalls, setMaxApiCalls] = useState(-1); // -1 = unlimited
   const [isPaused, setIsPaused] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState(''); // Streaming response part
-  const [displayedResponse, setDisplayedResponse] = useState(''); // Completed response part
+  const [responseState, dispatchResponse] = useReducer(responseReducer, {
+    currentResponse: '',
+    displayedResponse: ''
+  });
+  const [audioLevel, setAudioLevel] = useState(0); // Audio level 0-100
+
+  // UI state
   const [error, setError] = useState('');
   const [isMinimized, setIsMinimized] = useState(false);
   const [opacity, setOpacity] = useState(INITIAL_OPACITY);
   const [showAlert, setShowAlert] = useState(false);
-  const [backendReady, setBackendReady] = useState(false); // Tracks if initial connection succeeded
 
   const ws = useRef(null);
-  const reconnectTimeout = useRef(null);
+  const passiveReconnectTimeout = useRef(null);
   const containerRef = useRef(null); // Ref for the main draggable container
+
+  // --- Status Message Logging Helper ---
+  const addStatusMessage = useCallback((type, message, icon = '') => {
+    setStatusMessages(prev => {
+      const newMessage = {
+        timestamp: Date.now(),
+        type, // 'connecting', 'success', 'error', 'info'
+        message,
+        icon
+      };
+      const updated = [...prev, newMessage];
+      // Keep only the last MAX_STATUS_MESSAGES
+      return updated.slice(-MAX_STATUS_MESSAGES);
+    });
+  }, []);
 
   // --- WebSocket Message Sending ---
   const sendWebSocketMessage = useCallback((type, payload) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type, ...payload }));
+      try {
+        ws.current.send(JSON.stringify({ type, ...payload }));
+      } catch (err) {
+        console.error('Failed to send WebSocket message:', err);
+        setError(`Failed to send message: ${err.message}`);
+        setShowAlert(true);
+      }
     } else {
       console.error('WebSocket is not connected or not ready.');
       setError('WebSocket is not connected. Cannot send message.');
@@ -170,26 +313,15 @@ export default function FloatingPrompter() {
 
   // --- Response Handling ---
   const handleAssistantResponse = useCallback((responseData) => {
-    // Clarified logic: Always append delta, clear displayed on new stream if needed.
     if (responseData?.type === 'response.audio_transcript.delta') {
-       // If we start receiving delta and there's already a displayed response,
-       // it implies a new response sequence is starting. Clear the old displayed response.
-       // However, only clear if currentResponse is also empty, meaning it's truly the start.
-      if (!currentResponse && displayedResponse) {
-         setDisplayedResponse('');
-      }
-      setCurrentResponse(prev => prev + (responseData.delta || ''));
+      // Append streaming delta
+      dispatchResponse({ type: 'ADD_DELTA', payload: responseData.delta });
     } else if (responseData?.type === 'response.complete') {
-      // When complete, move the fully streamed response to displayedResponse
-      // and clear the current streaming response.
-      setDisplayedResponse(prev => prev + currentResponse); // Append current stream to displayed
-      setCurrentResponse(''); // Clear the stream buffer
+      // Move current response to displayed, clear streaming buffer
+      dispatchResponse({ type: 'COMPLETE_RESPONSE' });
       console.log('Complete response received.');
-      // Optionally pause listening automatically after a complete response:
-      // sendWebSocketMessage('control', { action: 'pause_listening' });
-      // setIsPaused(true); // Need to manage state correctly if doing this
     }
-  }, [currentResponse, displayedResponse]); // Dependencies: currentResponse for logic, displayedResponse for clearing
+  }, []); // No stale closure issues with reducer!
 
   // --- WebSocket Message Receiving ---
   const handleWebSocketMessage = useCallback((event) => {
@@ -197,8 +329,10 @@ export default function FloatingPrompter() {
       const data = JSON.parse(event.data);
       switch (data?.type) {
         case 'status':
+          console.log(`[STATUS] Received: is_listening=${data.is_listening}, is_paused=${data.is_paused}, status="${data.status}"`);
           setIsListening(data.is_listening);
           setIsPaused(data.is_paused);
+          console.log(`[STATUS] Updated isListening to: ${data.is_listening}`);
           break;
         case 'transcript': // Assuming transcript might still be used for raw user speech
            // Decide how to display raw transcript if needed, e.g., in a separate area
@@ -209,14 +343,27 @@ export default function FloatingPrompter() {
         case 'new_response':
            // Signal that a new response sequence is starting.
            // Clear both displayed and current responses.
-           setDisplayedResponse('');
-           setCurrentResponse('');
+           dispatchResponse({ type: 'NEW_RESPONSE' });
            break;
         case 'response': // This wraps the assistant's response chunks
           handleAssistantResponse(data.data);
           break;
         case 'api_call_count':
           setApiCallCount(data.count);
+          break;
+        case 'config':
+          if (data.max_api_calls !== undefined) {
+            setMaxApiCalls(data.max_api_calls);
+          }
+          break;
+        case 'audio_level':
+          setAudioLevel(data.level);
+          break;
+        case 'debug':
+          // Display debug messages in status area for troubleshooting
+          if (data.message) {
+            addStatusMessage('debug', data.message);
+          }
           break;
         case 'error':
           const errorMsg = data.error?.message || 'An unknown backend error occurred.';
@@ -240,58 +387,63 @@ export default function FloatingPrompter() {
       console.log('WebSocket already open.');
       return;
     }
-     if (isConnecting) {
+    if (isConnecting) {
       console.log('Connection attempt already in progress.');
       return;
     }
 
-    clearTimeout(reconnectTimeout.current); // Clear any pending reconnect timeout
+    clearTimeout(passiveReconnectTimeout.current); // Clear any pending passive reconnect
     setIsConnecting(true);
+    setConnectionHealth('connecting');
     setError(''); // Clear previous errors
     setShowAlert(false);
+    addStatusMessage('connecting', `Connecting to backend... (${WEBSOCKET_URL})`);
 
-    console.log(`Attempting to connect WebSocket (Attempt ${reconnectAttempts + 1})...`);
+    console.log('Attempting to connect WebSocket...');
     ws.current = new WebSocket(WEBSOCKET_URL);
 
     ws.current.onopen = () => {
       console.log('WebSocket Connected');
-      setIsConnected(true);
+      setConnectionHealth('connected');
       setIsConnecting(false);
-      setBackendReady(true); // Mark backend as ready on first successful connect
-      setReconnectAttempts(0); // Reset attempts on successful connection
+      addStatusMessage('success', 'Connected to backend successfully');
+      addStatusMessage('info', 'Ready to listen - Click "Start Listening" below');
+
+      // Start passive reconnection monitoring (in case connection drops)
+      passiveReconnectTimeout.current = setTimeout(() => {
+        if (ws.current?.readyState !== WebSocket.OPEN) {
+          console.log('Passive reconnect triggered');
+          connectWebSocket();
+        }
+      }, PASSIVE_RECONNECT_DELAY_MS);
     };
 
     ws.current.onclose = (event) => {
       console.log('WebSocket Disconnected:', event.reason, `Code: ${event.code}`);
-      setIsConnected(false);
+      setConnectionHealth('disconnected');
       setIsConnecting(false);
-      // Don't set backendReady to false here, keep it true once initially connected
 
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        setReconnectAttempts(prev => prev + 1);
-        console.log(`Scheduling reconnect attempt ${reconnectAttempts + 1} in ${RECONNECT_DELAY_MS / 1000}s`);
-        reconnectTimeout.current = setTimeout(connectWebSocket, RECONNECT_DELAY_MS);
-      } else {
-        console.error('Max reconnect attempts reached.');
-        setError('Failed to connect to the backend after multiple attempts.');
-        setShowAlert(true);
+      if (event.code !== 1000) { // 1000 = normal closure
+        addStatusMessage('error', 'Connection lost - Start backend server and click Retry');
+
+        // Optional: Uncomment for passive background retry after 30 seconds
+        // passiveReconnectTimeout.current = setTimeout(() => {
+        //   console.log('Background reconnect attempt');
+        //   connectWebSocket();
+        // }, PASSIVE_RECONNECT_DELAY_MS * 3); // 30 seconds
       }
     };
 
     ws.current.onerror = (errorEvent) => {
       console.error('WebSocket Error:', errorEvent);
-      // onclose will usually be called after onerror, triggering reconnect logic
-      // Only set error if not already trying to reconnect
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-         setError('WebSocket connection error.');
-         setShowAlert(true);
-      }
-       setIsConnecting(false); // Ensure connecting state is reset on error
+      setConnectionHealth('disconnected');
+      setIsConnecting(false);
+      addStatusMessage('error', 'Backend not responding - Start server and click Retry');
     };
 
     ws.current.onmessage = handleWebSocketMessage;
 
-  }, [reconnectAttempts, isConnecting, handleWebSocketMessage]); // Dependencies for connection logic
+  }, [isConnecting, handleWebSocketMessage, addStatusMessage]); // Dependencies for connection logic
 
   // --- Effects ---
 
@@ -300,21 +452,22 @@ export default function FloatingPrompter() {
     connectWebSocket(); // Attempt initial connection on mount
 
     return () => {
-      clearTimeout(reconnectTimeout.current); // Clear timeout on unmount
+      clearTimeout(passiveReconnectTimeout.current); // Clear timeout on unmount
       if (ws.current) {
         ws.current.close(); // Close WebSocket connection
         console.log('WebSocket connection closed on component unmount.');
       }
     };
-  }, [connectWebSocket]); // connectWebSocket has its own dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty array - only run on mount/unmount, not when connectWebSocket changes
 
-  // Keyboard listener for Space bar (Pause/Resume)
-  const togglePauseResume = useCallback(() => {
-    const newIsPaused = !isPaused;
-    // Optimistically update UI, then send message
-    setIsPaused(newIsPaused);
-    sendWebSocketMessage('control', { action: newIsPaused ? 'pause_listening' : 'resume_listening' });
-  }, [isPaused, sendWebSocketMessage]); // Dependencies: isPaused, sendWebSocketMessage
+  // Keyboard listener for Space bar (Start/Stop Listening - Push-to-Talk)
+  const toggleListening = useCallback(() => {
+    // Toggle between start_listening and stop_listening
+    const action = isListening ? 'stop_listening' : 'start_listening';
+    console.log(`[SPACEBAR] Current isListening: ${isListening} → Sending action: ${action}`);
+    sendWebSocketMessage('control', { action });
+  }, [isListening, sendWebSocketMessage]); // Dependencies: isListening, sendWebSocketMessage
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -325,7 +478,7 @@ export default function FloatingPrompter() {
         if (targetTagName !== 'input' && targetTagName !== 'textarea' && targetTagName !== 'select') {
             event.preventDefault(); // Prevent default space bar behavior (e.g., scrolling)
             event.stopPropagation(); // Stop the event from bubbling up
-            togglePauseResume();
+            toggleListening();
         }
       }
     };
@@ -334,7 +487,7 @@ export default function FloatingPrompter() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [togglePauseResume]); // Dependency: togglePauseResume callback
+  }, [toggleListening]); // Dependency: toggleListening callback
 
   // --- UI Event Handlers ---
   const handleToggleListening = useCallback(() => {
@@ -365,40 +518,36 @@ export default function FloatingPrompter() {
         <PrompterHeader
           opacity={opacity}
           isMinimized={isMinimized}
-          isPaused={isPaused}
           onMinimize={handleToggleMinimize}
-          onPauseResume={togglePauseResume} // Use the stable callback
           onClose={handleCloseWindow}
+          connectionHealth={connectionHealth}
         />
 
-        {!backendReady && !isConnecting && reconnectAttempts >= MAX_RECONNECT_ATTEMPTS && (
-             <div className="prompter-content">
-                <ConnectButton onClick={connectWebSocket} isConnecting={isConnecting} />
-             </div>
-        )}
+        {/* Show status message log - always visible */}
+        <StatusMessageLog
+          statusMessages={statusMessages}
+          onRetry={connectWebSocket}
+          isConnecting={isConnecting}
+          connectionHealth={connectionHealth}
+        />
 
-         {/* Show connection status indicator */}
-         <ConnectionStatus
-            isConnected={isConnected}
-            isConnecting={isConnecting}
-            reconnectAttempts={reconnectAttempts}
-         />
-
-
-        {backendReady && !isMinimized && (
+        {/* Show main content - always visible but disabled when not connected */}
+        {!isMinimized && (
           <div className="prompter-content">
             <ListeningButton
               isListening={isListening}
               isPaused={isPaused}
               onClick={handleToggleListening}
               opacity={opacity}
+              disabled={connectionHealth !== 'connected'}
             />
+            <AudioLevelMeter level={audioLevel} isListening={isListening} />
             <ResponseDisplay
-              displayedResponse={displayedResponse}
-              currentResponse={currentResponse}
+              displayedResponse={responseState.displayedResponse}
+              currentResponse={responseState.currentResponse}
               opacity={opacity}
             />
-            <StatusBar apiCallCount={apiCallCount} />
+            <StatusBar apiCallCount={apiCallCount} maxApiCalls={maxApiCalls} />
             <OpacitySlider opacity={opacity} onChange={handleOpacityChange} />
           </div>
         )}

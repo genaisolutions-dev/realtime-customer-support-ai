@@ -6,7 +6,7 @@ class Config:
         self.max_api_calls = -1  # Set from environment or parameters
         self.silence_threshold = 5
         self.cooldown_duration = 10
-        self.min_buffer_size = 32000  
+        self.min_buffer_size = 16000  # Reduced from 32000 (~166ms @ 48kHz, was 333ms)  
         self.max_buffer_wait_time = 1 
         self.rate = 48000  # Keep sample rate at 48000 Hz
         self.frame_duration_ms = 20  # Reduced from 30 ms
@@ -18,8 +18,9 @@ class Config:
         # Removed websocket_host and websocket_port as they are hardcoded in websocket_manager.py
         self.speaker_device_index = None  
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.api_url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
+        self.api_url = "wss://api.openai.com/v1/realtime?model=gpt-realtime-2025-08-28"
         self.instructions = """You are a helpful assistant. You are helping me answer interview questions.
+                               Respond in English only, regardless of the language of the question.
                                Provide concise and direct answers. Present responses as bullet points.
                                No markdown. Avoid unnecessary elaboration unless specifically requested."""
         self.voice = "alloy"
