@@ -203,58 +203,117 @@ To capture audio from applications like Microsoft Teams or YouTube (interviewer'
 
 ## How the Application Works
 
-The OpenAI Virtual Teleprompter operates through a sophisticated pipeline:
+The OpenAI Virtual Teleprompter is designed to help you during interviews by capturing the interviewer's questions and generating AI-powered answers in real-time. Here's how it works:
 
-1. **Audio Capture**: The application uses PyAudio to capture real-time audio from your microphone. On Windows, it automatically selects your default microphone. If no default is found, you'll be prompted to manually select from available audio devices. The application supports any audio input device including built-in laptop microphones, monitor microphones, webcam microphones, and USB microphones.
+1. **Speaker Audio Capture**: When configured with VB-Audio Cable, the application captures audio from your speakers (not your microphone). This means it captures what the interviewer is saying through Teams, Zoom, or any other application playing audio through your speakers.
 
-2. **Speech Processing**: The captured audio is sent to OpenAI's API, which converts the speech to text and processes the content.
+2. **Automatic Device Selection**: On startup, the application automatically selects your Windows default recording device. With VB-Cable configured, this will be "CABLE Output" which captures your speaker audio.
 
-3. **Real-time Display**: The transcribed text and any AI-generated suggestions are immediately displayed on the floating interface, allowing you to read and react in real-time.
+3. **Question Processing**: When the interviewer asks a question, their audio is captured from your speakers, sent to OpenAI's Realtime API, and converted to text.
 
-4. **Intelligent Assistance**: Beyond mere transcription, the OpenAI API can provide context-aware suggestions, clarifications, or expansions on your speech, enhancing your delivery.
+4. **AI Answer Generation**: The OpenAI API processes the interviewer's question and generates a concise, bullet-point answer based on the assistant instructions configured in `config.py`.
 
-5. **User Interaction**: You can control the application using voice commands or the on-screen interface, allowing you to pause, resume, or adjust settings as needed.
+5. **Real-time Display**: The AI-generated answer appears immediately in the floating teleprompter window, allowing you to read and formulate your response while maintaining eye contact with your camera.
 
-6. **Customizable Interface**: The floating prompter can be moved around the screen and its opacity adjusted, ensuring it doesn't interfere with other applications or your camera during use.
+6. **Customizable Interface**: The floating prompter can be moved around the screen and its opacity adjusted, ensuring it doesn't interfere with your meeting video or other applications.
 
 ### Usage in Virtual Meetings
 
-When using the OpenAI Virtual Teleprompter during virtual meetings, it's important to note that you'll need to use two microphones:
-- One microphone (high-quality USB mic recommended) for the Teleprompter application
-- Another microphone (such as your webcam's built-in mic) for the actual meeting audio
+The teleprompter is designed for interview scenarios where you need real-time assistance answering questions. Here's the typical setup:
 
-This setup ensures that the Teleprompter can capture your speech without interfering with your meeting audio. The Teleprompter automatically uses your Windows default microphone, so set your preferred device as the default before starting the application.
+**Audio Configuration:**
+- **Your Microphone** (webcam or USB mic): Used for speaking to the interviewer in Teams/Zoom - the interviewer hears you through this
+- **VB-Audio Cable Output**: Captures the interviewer's audio from your speakers and sends it to the teleprompter
+- **Your Speakers**: You hear the interviewer's questions through your normal speakers (Dell monitor, headphones, etc.)
+
+**How It Works:**
+1. The interviewer asks a question → audio plays through your speakers
+2. VB-Cable routes this speaker audio to "CABLE Output" (recording device)
+3. The teleprompter captures from "CABLE Output" and sends to OpenAI
+4. AI generates an answer → displayed in the teleprompter window
+5. You read the answer and speak your response into your webcam/USB mic
+6. The interviewer hears your spoken answer through Teams/Zoom
+
+**Important**: You only need ONE microphone for speaking. The teleprompter captures the interviewer's voice from speakers via VB-Cable, not from a microphone.
 
 ### Interacting with the Teleprompter
 
-- **Start Listening**: Click the "Start Listening" button to begin speech recognition.
-- **Voice Input**: Speak naturally; the Teleprompter processes your speech in real-time.
-- **Pause/Resume**: Use the spacebar or the on-screen button to control listening.
-- **View Transcripts and Suggestions**: Read the real-time transcripts and AI suggestions on the floating interface.
-- **Adjust Opacity**: Use the slider to change the transparency of the floating prompter.
-- **Reposition**: Click and drag the top bar to move the floating prompter on your screen.
+**Basic Controls:**
 
-By leveraging these features, you can maintain natural eye contact and body language while having the support of an intelligent, real-time teleprompter.
+- **Start Listening**: Click the "Start Listening" button to begin capturing audio from speakers (interviewer's questions)
+- **View AI Answers**: Read the AI-generated answers displayed in the response area as they appear in real-time
+- **Adjust Opacity**: Use the slider to change the transparency of the floating prompter (helpful for seeing content behind the window)
+- **Reposition**: Click and drag the top bar to move the floating prompter anywhere on your screen
+- **Resize**: Drag the bottom-right corner to resize the window
+
+**Spacebar Control (Important!):**
+
+The **Spacebar** is your primary control for managing when the teleprompter captures audio. Here's why and how to use it:
+
+**WHY use the spacebar:**
+- Prevents the teleprompter from capturing YOUR voice while you're speaking your answer to the interviewer
+- Gives you control over when to send audio to the OpenAI API (avoids unnecessary API calls)
+- Allows you to pause and think before capturing the next question
+
+**WHEN to use the spacebar:**
+- **Press spacebar BEFORE speaking your answer** → This pauses audio capture so the teleprompter doesn't send your voice to OpenAI
+- **Press spacebar AFTER you finish speaking** → This resumes audio capture, ready to capture the interviewer's next question
+
+**HOW it works:**
+- Press spacebar once → Listening pauses (button shows "Resume Listening")
+- Press spacebar again → Listening resumes (button shows "Pause Listening")
+- You can also click the button directly instead of using the spacebar
+
+**Typical Workflow:**
+1. Click "Start Listening" → Teleprompter captures audio
+2. Interviewer asks question → AI answer appears
+3. Press **Spacebar** → Pause (stop capturing)
+4. Read AI answer and speak your response to interviewer
+5. Press **Spacebar** → Resume (ready for next question)
+6. Repeat steps 2-5 throughout the interview
+
+By using the spacebar effectively, you maintain control over the conversation flow while getting real-time AI assistance.
 
 ### Interaction Flow
 
-Here's the typical interaction flow after starting the application:
+Here's the typical interaction flow during an interview:
 
-1.  **Initialization:** The user first starts the Python backend server in one terminal and then launches the Electron frontend application in another terminal.
-2.  **UI Appears:** A floating, transparent window (the "prompter") appears on the screen, set to always be on top. This window contains a "Start Listening" button, a response area, an API call counter, and an opacity slider.
-3.  **Start Listening:** The user clicks the "Start Listening" button to initiate the process.
-4.  **Audio Capture:** The application begins capturing audio from your default microphone (or prompts for device selection if none is configured).
+1.  **Initialization:** Start the Python backend server in PowerShell Terminal 1, then launch the Electron frontend in PowerShell Terminal 2.
+
+2.  **UI Appears:** A floating, transparent window (the "teleprompter") appears on screen, always on top. The window contains:
+    - "Start Listening" button
+    - Response area (dark gray box where AI answers appear)
+    - API call counter (tracks OpenAI API usage)
+    - Opacity slider
+    - Resize handle (white L-shape in bottom-right corner)
+
+3.  **Start Interview:** Click the "Start Listening" button to begin capturing audio from your speakers via VB-Cable.
+
+4.  **Audio Capture from Speakers:** The application captures audio from "CABLE Output" (your speaker audio), which includes the interviewer's voice from Teams/Zoom.
+
 5.  **Real-time Processing:**
-    *   The captured audio is sent to the Python backend via WebSockets.
-    *   The backend forwards the audio to the OpenAI API for speech-to-text conversion and potentially for generating intelligent suggestions or clarifications based on the `instructions` in `config.py`.
-    *   The processed text (transcription and/or suggestions) is sent back from the backend to the Electron frontend via WebSockets.
-6.  **Display:** The frontend displays the received text in the response area of the floating prompter window in real-time as the user speaks.
-7.  **User Interaction during Use:**
-    *   **Speaking:** The user speaks naturally, and the prompter updates with the transcription/suggestions.
-    *   **Pause/Resume:** The user can press the **Spacebar** at any time to toggle pausing and resuming the audio capture and processing.
-    *   **Reposition:** The user can click and drag the top bar of the floating window to move it anywhere on the screen.
-    *   **Adjust Opacity:** The user can use the slider within the UI to change the transparency of the prompter window.
-8.  **API Tracking:** The UI displays a counter showing the number of OpenAI API calls made during the session.
+    - Interviewer asks a question → Audio plays through your speakers
+    - VB-Cable routes speaker audio to "CABLE Output"
+    - Backend captures audio and sends to OpenAI Realtime API via WebSocket
+    - OpenAI converts speech-to-text and generates an answer based on the `instructions` in `config.py`
+    - AI-generated answer is sent back to the frontend via WebSocket
+
+6.  **Display AI Answer:** The AI-generated answer appears in the response area of the teleprompter in real-time as the interviewer speaks.
+
+7.  **User Response Workflow:**
+    - **Interviewer asks question** → AI answer displays in teleprompter
+    - **Press Spacebar** → Pause audio capture (prevents capturing your voice)
+    - **Read the AI answer** → Formulate your response
+    - **Speak your answer** → Into webcam/USB mic (interviewer hears you through Teams)
+    - **Press Spacebar** → Resume audio capture (ready for next question)
+
+8.  **Additional Controls:**
+    - **Reposition:** Click and drag the top bar to move the window
+    - **Resize:** Drag the bottom-right corner to adjust window size
+    - **Adjust Opacity:** Use the slider to change transparency
+    - **Monitor API Usage:** Check the API call counter to track OpenAI usage
+
+9.  **End Interview:** Click "Stop Listening" or close the application when the interview is complete.
 
 
 ## Configuration
