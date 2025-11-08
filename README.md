@@ -60,7 +60,7 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 
 ## Prerequisites
 
-- **Python 3.7+**
+- **Python 3.10+** (recommended for best compatibility with dependencies)
 - **Node.js 14+**
 - **npm**
 - **An OpenAI API Key**: You need to have an API key from OpenAI to use their services.
@@ -75,8 +75,8 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/voice-assistant-application.git
-   cd voice-assistant-application/backend
+   git clone https://github.com/raoulbia-ai/gpt-meeting-assistant-electron.git
+   cd gpt-meeting-assistant-electron/backend
    ```
 
 2. **Create a Virtual Environment**
@@ -110,11 +110,12 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 
    - **On Windows**:
      - Installing `PyAudio` on Windows can sometimes be tricky if you don't have the necessary C++ build tools.
-     - **Method 1 (Recommended): Install Microsoft C++ Build Tools.** Download and install the "Build Tools for Visual Studio" from the [Visual Studio website](https://visualstudio.microsoft.com/visual-cpp-build-tools/). Make sure to select the "C++ build tools" workload during installation. After installation, try `pip install pyaudio` again.
-     - **Method 2: Use pre-compiled wheels.** If the first method fails, you can find unofficial pre-compiled PyAudio wheels for Windows [here](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio). Download the wheel file (`.whl`) corresponding to your Python version and system architecture (e.g., `PyAudio‑0.2.11‑cp39‑cp39‑win_amd64.whl` for Python 3.9 64-bit). Then, install it using pip:
+     - **Method 1 (Recommended): Use the included pre-compiled wheel.** This repository includes a pre-compiled PyAudio wheel for Python 3.14 on Windows 64-bit in the `backend` directory:
        ```bash
-       pip install path/to/your/downloaded/PyAudio‑0.2.xx‑cpXX‑cpXX‑win_amd64.whl
+       pip install backend/pyaudio-0.2.14-cp314-cp314-win_amd64.whl
        ```
+     - **Method 2: Install Microsoft C++ Build Tools.** Download and install the "Build Tools for Visual Studio" from the [Visual Studio website](https://visualstudio.microsoft.com/visual-cpp-build-tools/). Make sure to select the "C++ build tools" workload during installation. After installation, try `pip install pyaudio` again.
+     - **Method 3: Download other pre-compiled wheels.** If you're using a different Python version, you can find unofficial pre-compiled PyAudio wheels for Windows [here](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio). Download the wheel file (`.whl`) corresponding to your Python version and system architecture (e.g., `PyAudio‑0.2.14‑cp310‑cp310‑win_amd64.whl` for Python 3.10 64-bit).
      - After successfully installing PyAudio, install the rest of the requirements:
        ```bash
        pip install -r requirements.txt
@@ -178,7 +179,7 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 
 The OpenAI Virtual Teleprompter operates through a sophisticated pipeline:
 
-1. **Audio Capture**: The application uses PyAudio to capture real-time audio from your microphone. It's specifically configured for the Logitech Yeti Blue microphone, ensuring high-quality audio input.
+1. **Audio Capture**: The application uses PyAudio to capture real-time audio from your microphone. On Windows, it automatically selects your default microphone. If no default is found, you'll be prompted to manually select from available audio devices. The application supports any audio input device including built-in laptop microphones, monitor microphones, webcam microphones, and USB microphones.
 
 2. **Speech Processing**: The captured audio is sent to OpenAI's API, which converts the speech to text and processes the content.
 
@@ -193,10 +194,10 @@ The OpenAI Virtual Teleprompter operates through a sophisticated pipeline:
 ### Usage in Virtual Meetings
 
 When using the OpenAI Virtual Teleprompter during virtual meetings, it's important to note that you'll need to use two microphones:
-- One microphone (preferably the Logitech Yeti Blue) for the Teleprompter application
+- One microphone (high-quality USB mic recommended) for the Teleprompter application
 - Another microphone (such as your webcam's built-in mic) for the actual meeting audio
 
-This setup ensures that the Teleprompter can capture your speech without interfering with your meeting audio.
+This setup ensures that the Teleprompter can capture your speech without interfering with your meeting audio. The Teleprompter automatically uses your Windows default microphone, so set your preferred device as the default before starting the application.
 
 ### Interacting with the Teleprompter
 
@@ -216,7 +217,7 @@ Here's the typical interaction flow after starting the application:
 1.  **Initialization:** The user first starts the Python backend server in one terminal and then launches the Electron frontend application in another terminal.
 2.  **UI Appears:** A floating, transparent window (the "prompter") appears on the screen, set to always be on top. This window contains a "Start Listening" button, a response area, an API call counter, and an opacity slider.
 3.  **Start Listening:** The user clicks the "Start Listening" button to initiate the process.
-4.  **Audio Capture:** The application begins capturing audio from the configured microphone (preferably a Logitech Yeti Blue).
+4.  **Audio Capture:** The application begins capturing audio from your default microphone (or prompts for device selection if none is configured).
 5.  **Real-time Processing:**
     *   The captured audio is sent to the Python backend via WebSockets.
     *   The backend forwards the audio to the OpenAI API for speech-to-text conversion and potentially for generating intelligent suggestions or clarifications based on the `instructions` in `config.py`.
@@ -292,7 +293,7 @@ python test_audio.py
 
 - This script tests audio recording from your microphone and saves it to `output.wav`.
 - Ensure your microphone is properly connected and recognized by the system.
-- The script searches for a "Blue Yeti" microphone by default. Modify the device search in the script if you have a different microphone.
+- The script will use your system's default microphone or prompt you to select from available devices.
 
 ### Additional Tests
 
@@ -344,16 +345,23 @@ We welcome contributions from the community! To contribute:
 
 ## Environment and Compatibility
 
-The OpenAI Virtual Teleprompter is designed to be compatible with both Windows and Linux operating systems. While it may function with other microphones, optimal performance is generally achieved with high-quality microphones.
+The OpenAI Virtual Teleprompter is designed to be compatible with both Windows and Linux operating systems. The application supports any audio input device and automatically detects your system's default microphone on startup.
 
 ### Important Notes:
 
 1. **Operating System Compatibility**: This application is designed to be compatible with both Windows and Linux.
 
-2. **Microphone Configuration**: The software may function with other microphones, but optimal performance is generally achieved with high-quality microphones.
+2. **Microphone Configuration**: The application automatically selects your system's default microphone on startup. It supports any audio input device including:
+   - Built-in laptop microphones
+   - Monitor built-in microphones
+   - Webcam microphones
+   - USB microphones (e.g., Blue Yeti, Rode, Audio-Technica)
+   - Professional audio interfaces
+
+   Optimal performance is generally achieved with high-quality microphones, but the application will work with any available audio input device.
 
 3. **Dual Microphone Setup for Virtual Meetings**: When using the Teleprompter during virtual meetings, you may need to use two separate microphones:
-   - One dedicated to the Teleprompter application (preferably a high-quality microphone)
+   - One dedicated to the Teleprompter application (set as your Windows default microphone)
    - Another for your meeting audio (e.g., your webcam's built-in microphone)
 
 4. **Performance Considerations**: The application's performance may vary depending on your system specifications and the quality of your audio input.
