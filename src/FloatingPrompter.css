@@ -1,14 +1,41 @@
 /* Base container */
 .prompter-container {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 600px;
+  top: 5px;    /* Small gap for native top resize */
+  left: 5px;   /* Small gap for native left resize */
+  right: 5px;  /* Small gap for native right resize */
+  bottom: 5px; /* Small gap for native bottom resize */
+  width: auto; /* Let right edge define width */
+  min-width: 390px;  /* Adjusted for 5px gaps (400 - 10) */
+  max-width: 1190px; /* Adjusted for 5px gaps (1200 - 10) */
   color: white;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   font-family: Arial, sans-serif;
+  box-sizing: border-box;
+  display: flex; /* Enable flexbox layout */
+  flex-direction: column; /* Stack children vertically */
   /* Opacity will be applied via inline style based on state */
+}
+
+/* Minimal resize indicator - bottom-right corner */
+.prompter-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 15px;
+  height: 15px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+  border-right: 2px solid rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  border-bottom-right-radius: 8px;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.prompter-container:hover::after {
+  opacity: 1;
 }
 
 /* Header */
@@ -41,7 +68,10 @@
 
 /* Main content area */
 .prompter-content {
-  padding: 16px;
+  padding: 16px 16px 2px 16px; /* Minimal bottom padding to reduce gap below StatusBar */
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Expand to fill available vertical space */
 }
 
 /* Buttons */
@@ -67,10 +97,24 @@
 
 .listening-button-active {
   background-color: rgba(245, 101, 101, var(--bg-opacity, 0.8));
+  transition: all 0.2s ease;
+}
+
+.listening-button-active:hover:not(:disabled) {
+  background-color: rgba(245, 101, 101, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .listening-button-inactive {
   background-color: rgba(66, 153, 225, var(--bg-opacity, 0.8));
+  transition: all 0.2s ease;
+}
+
+.listening-button-inactive:hover:not(:disabled) {
+  background-color: rgba(66, 153, 225, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .prompter-button:disabled {
@@ -81,7 +125,8 @@
 
 /* Response display */
 .response-display {
-  height: 200px;
+  min-height: 200px; /* Larger default height for better prominence */
+  max-height: 600px;
   overflow-y: auto;
   margin-bottom: 16px;
   padding: 12px;
@@ -89,6 +134,7 @@
   font-size: 18px;
   color: white;
   line-height: 1.5;
+  flex: 1; /* Grow to fill available space, pushing opacity slider to bottom */
   /* Background color will be applied via inline style based on opacity */
 }
 
@@ -111,7 +157,15 @@
   font-size: 0.9rem;
 }
 
+.status-bar p {
+  margin: 0;  /* Reset browser default paragraph margins */
+}
+
 /* Opacity Slider */
+.opacity-control {
+  margin-bottom: 4px; /* Minimal spacing above StatusBar */
+}
+
 .opacity-control label {
   display: block;
   margin-bottom: 8px;
@@ -313,7 +367,7 @@
 
 /* Audio Level Meter */
 .audio-level-meter {
-  margin-bottom: 12px;
+  margin-bottom: 16px; /* Standardized spacing */
   padding: 10px 12px;
   background-color: rgba(30, 30, 30, 0.6);
   border-radius: 4px;

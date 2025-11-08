@@ -547,8 +547,8 @@ export default function FloatingPrompter() {
               currentResponse={responseState.currentResponse}
               opacity={opacity}
             />
-            <StatusBar apiCallCount={apiCallCount} maxApiCalls={maxApiCalls} />
             <OpacitySlider opacity={opacity} onChange={handleOpacityChange} />
+            <StatusBar apiCallCount={apiCallCount} maxApiCalls={maxApiCalls} />
           </div>
         )}
 

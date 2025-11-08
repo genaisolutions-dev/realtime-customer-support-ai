@@ -5,6 +5,11 @@ function createWindow () {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
+    resizable: true,   // Enable window resizing
+    minWidth: 400,     // Minimum usable width
+    minHeight: 300,    // Minimum usable height
+    maxWidth: 1600,    // Maximum width
+    maxHeight: 1200,   // Maximum height
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
