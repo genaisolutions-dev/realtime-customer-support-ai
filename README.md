@@ -1,19 +1,29 @@
 # OpenAI Virtual Teleprompter
 
-Welcome to the **OpenAI Virtual Teleprompter**! This innovative application transforms your spoken words into real-time text, powered by OpenAI's advanced language processing capabilities. Designed for professionals, content creators, and anyone who needs to maintain eye contact while delivering information, this tool acts as a smart, responsive teleprompter that adapts to your speech.
+**Ace your job interviews with AI-powered assistance in real-time!**
+
+The OpenAI Virtual Teleprompter is an innovative Electron desktop application that captures interviewer questions through your speakers and generates intelligent, concise answers instantly. Powered by OpenAI's Realtime API, this transparent, always-on-top overlay provides discreet AI assistance during virtual interviews on Teams, Zoom, or any video platform—helping you stay confident and articulate when it matters most.
 
 ## Introduction
 
-The OpenAI Virtual Teleprompter is not just a transcription tool; it's an intelligent assistant that can help clarify your thoughts, expand on your ideas, and even suggest improvements to your speech in real-time. By leveraging the power of OpenAI's API, it provides a seamless experience for users who need to speak coherently and confidently, whether in virtual meetings, presentations, or content creation sessions.
+Preparing for job interviews can be nerve-wracking, especially when you're put on the spot with tough technical questions or behavioral scenarios. The OpenAI Virtual Teleprompter levels the playing field by capturing the interviewer's questions in real-time (using VB-Audio Cable to route speaker audio) and instantly generating bullet-point answers tailored to your needs.
 
-Key features include:
-- Real-time speech-to-text conversion
-- Intelligent responses and suggestions from OpenAI
-- Customizable floating interface for easy viewing during use
-- Ability to pause and resume speech recognition
-- Adjustable opacity for the on-screen display
+**How it helps you:**
+- **Stay Calm Under Pressure**: Read AI-generated talking points while maintaining eye contact with your camera
+- **Answer Confidently**: Get concise, relevant answers to questions as they're asked
+- **Never Go Blank**: Always have a structured response ready, reducing interview anxiety
+- **Learn as You Go**: See how to frame professional answers to common and uncommon questions
+- **Discreet Assistance**: Transparent Electron overlay sits on top of your video call without being obvious
 
-Whether you're a professional speaker looking to improve your delivery, a content creator needing assistance with scripting, or anyone who wants to enhance their verbal communication, the OpenAI Virtual Teleprompter is here to support and elevate your speaking experience.
+**Key features:**
+- **Speaker Audio Capture**: Routes interviewer's voice from speakers to AI (via VB-Audio Cable)
+- **Real-time AI Answers**: Generates bullet-point responses as questions are asked
+- **Spacebar Control**: Pause/resume audio capture to avoid sending your own voice to the API
+- **Always-on-Top Overlay**: Electron desktop app stays visible over Teams/Zoom
+- **Adjustable Transparency**: Change opacity to see content behind the window
+- **Resizable & Draggable**: Position and size the window to fit your screen layout
+
+Whether you're interviewing for your dream job, preparing for technical screenings, or practicing for behavioral interviews, the OpenAI Virtual Teleprompter provides intelligent, real-time support when you need it most.
 
 ## Table of Contents
 
@@ -36,17 +46,27 @@ Whether you're a professional speaker looking to improve your delivery, a conten
 
 ## Features
 
-- **Real-time Audio Capture**: Captures audio from your microphone with adjustable settings for channels, rate, and chunk size.
-- **OpenAI Integration**: Sends audio data to OpenAI's API for processing and receives responses.
-- **WebSocket Communication**: Utilizes WebSockets for real-time communication between the backend and frontend.
-- **Electron Frontend**: Provides a desktop application interface built with Electron and React.
-- **Draggable Floating Prompter**: A customizable and movable UI component for displaying assistant responses.
-- **Error Handling and Logging**: Comprehensive logging and error handling mechanisms for robust performance.
-- **Extensible Architecture**: Modular design for easy extension and integration with other services.
-- **Automatic Reconnection**: Designed to bypass the 15-minute OpenAI limitation by automatically reconnecting.
-- **Keyboard Control**: Start and stop listening with the spacebar (initial start requires clicking the "Start Listening" button).
+**Interview Assistance:**
+- **Speaker Audio Capture via VB-Cable**: Captures the interviewer's questions from your speakers (not your microphone), allowing you to hear questions normally while the AI processes them
+- **Real-time AI Answer Generation**: OpenAI Realtime API converts interviewer questions to text and generates concise, bullet-point answers instantly
+- **Spacebar Pause/Resume Control**: Quickly pause audio capture before speaking your answer, resume when ready for the next question
+- **Discreet Overlay Display**: Read AI suggestions while maintaining eye contact with your camera
 
-**Note**: This application is a Proof of Concept (PoC). While it has been successfully tested, users should expect potential bugs and issues.
+**Desktop Application (Electron + React):**
+- **Always-on-Top Window**: Transparent, frameless overlay stays visible over Teams/Zoom/any application
+- **Draggable & Resizable**: Position and size the teleprompter window to fit your screen layout
+- **Adjustable Opacity**: Change transparency to see content behind the window
+- **Native Windows Support**: Designed specifically for Windows 11 with PowerShell
+
+**Technical Features:**
+- **WebSocket Communication**: Real-time communication between Python backend and Electron frontend
+- **OpenAI Realtime API Integration**: Direct WebSocket connection to OpenAI for low-latency audio processing
+- **Automatic Device Selection**: Detects Windows default recording device (CABLE Output when configured)
+- **Voice Activity Detection (VAD)**: WebRTC VAD detects speech in audio streams for efficient processing
+- **Automatic Session Management**: Reconnects to OpenAI every 10 minutes to bypass 15-minute session limits
+- **Error Handling and Logging**: Comprehensive logging with rotation for troubleshooting
+
+**Note**: This application is currently a Proof of Concept (PoC). While successfully tested for interview scenarios, users may encounter bugs or issues. Contributions and feedback are welcome!
 
 ## Screenshots
 
