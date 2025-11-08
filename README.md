@@ -143,9 +143,26 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 
 4. **Set Up Configuration**
 
-   - **Environment Variables**:
+   - **OpenAI API Key** (Required):
 
-     Set the `OPENAI_API_KEY` environment variable:
+     You need an OpenAI API key to use this application. Get your API key from: https://platform.openai.com/api-keys
+
+     **Method 1 (Recommended): Use .env file**
+
+     This method persists your API key across terminal sessions without having to re-export it each time.
+
+     ```bash
+     # Copy the example file
+     cp .env.example .env
+
+     # Edit .env and replace the placeholder with your actual API key
+     # .env file should contain:
+     # OPENAI_API_KEY=sk-your-actual-key-here
+     ```
+
+     **Method 2 (Alternative): Set environment variable manually**
+
+     Set the `OPENAI_API_KEY` environment variable in your terminal (needs to be set each session):
 
      - On **Linux/macOS**:
 
@@ -153,10 +170,10 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
        export OPENAI_API_KEY='your_openai_api_key'
        ```
 
-     - On **Windows**:
+     - On **Windows PowerShell**:
 
-       ```cmd
-       set OPENAI_API_KEY='your_openai_api_key'
+       ```powershell
+       $env:OPENAI_API_KEY='your_openai_api_key'
        ```
 
    - **Configuration File**:
