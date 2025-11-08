@@ -175,6 +175,32 @@ This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
    npm install electron --save-dev
    ```
 
+### Windows 11: Capturing Speaker Audio (VB-Audio Cable Setup)
+
+To capture audio from applications like Microsoft Teams or YouTube (interviewer's questions), you need to configure Windows to route speaker output to a virtual audio device that the teleprompter can capture from.
+
+1. **Download VB-Audio Virtual Cable**
+   - Visit: https://vb-audio.com/Cable/
+   - Download the ZIP file for Windows
+
+2. **Install VB-Audio Cable**
+   - Extract the ZIP file
+   - Right-click `VBCABLE_Setup_x64.exe` → Run as administrator
+   - Click "Install Driver"
+   - **Restart your computer** (required)
+
+3. **Configure Audio Devices**
+   - Press `Win+R` → Type `mmsys.cpl` → Press Enter (opens Sound Control Panel)
+   - **Playback tab**: Right-click "CABLE Input" → Set as Default Device
+   - **Recording tab**: Right-click "CABLE Output" → Set as Default Device
+   - Right-click "CABLE Output" → Properties → Levels tab → Set volume to **100%**
+   - Right-click "CABLE Output" → Properties → Listen tab:
+     - Check ☑ "Listen to this device"
+     - Select your speakers (e.g., Dell monitor) from the dropdown
+     - Click OK
+
+**Result**: Audio from Teams, YouTube, or any application will be routed through the virtual cable and captured by the teleprompter, while you still hear it through your speakers.
+
 ## How the Application Works
 
 The OpenAI Virtual Teleprompter operates through a sophisticated pipeline:
@@ -384,26 +410,27 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Running the Application (Development Mode)
 
-To run the OpenAI Virtual Teleprompter in development mode, you'll need to use two terminal windows:
+**Note**: This application is designed for Windows. Use PowerShell to run the following commands.
 
-1.  **Terminal 1 - Start the Backend Server:**
-    Navigate to the `backend` directory, activate your virtual environment (if you created one), and start the Python WebSocket server:
-    ```bash
+To run the OpenAI Virtual Teleprompter in development mode, you'll need to use two PowerShell terminal windows:
+
+1.  **PowerShell Terminal 1 - Start the Backend Server:**
+    Navigate to the `backend` directory, activate your virtual environment, and start the Python WebSocket server:
+    ```powershell
     cd backend
-    # Activate virtual environment (e.g., source venv/bin/activate or venv\Scripts\activate)
-    python start_websocket_server.py # Or voice_assistant.py if that's the main entry point
+    .\venv\Scripts\Activate.ps1
+    python start_websocket_server.py
     ```
-    Keep this terminal running.
+    Keep this terminal running. On first run, you'll be prompted to select your audio device (select "CABLE Output" if using VB-Audio Cable setup).
 
-2.  **Terminal 2 - Start the Electron Frontend:**
-    In a new terminal window, navigate to the root directory of the project and launch the Electron app using npm:
-    ```bash
-    # Make sure you are in the project root directory
+2.  **PowerShell Terminal 2 - Start the Electron Frontend:**
+    In a new PowerShell terminal window, navigate to the root directory of the project and launch the Electron app:
+    ```powershell
     npm start
     ```
-    This command typically runs the Electron application in development mode, often with hot-reloading enabled.
+    This command builds the frontend and launches the Electron application.
 
-Make sure the backend server (Terminal 1) is running before launching the Electron app (Terminal 2).
+**Important**: Make sure the backend server (Terminal 1) is running before launching the Electron app (Terminal 2).
 
 ## Building the Application (Production)
 
