@@ -169,16 +169,6 @@ self.temperature = 0.6
 - **Spacebar:** Toggle pause/resume audio capture
 - **Window:** Drag via top bar, resize via bottom-right corner
 
-## Building for Distribution
-
-```bash
-./utils/build.sh           # Auto-detect OS
-./utils/build.sh --win     # Force Windows build
-./utils/build.sh --linux   # Force Linux build
-```
-
-Output: Distributable files in `dist/` directory.
-
 ## Technical Details
 
 ### Audio Processing
@@ -233,26 +223,6 @@ Logs stored in `backend/logs/` directory:
 
 Rotation: 10MB max file size, 5 backup files.
 
-## Testing
-
-```bash
-cd backend
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pytest ../tests/ -v
-```
-
-Test files:
-- `tests/test_buffer_race_conditions.py` - Buffer lock tests
-- `tests/test_state_synchronization.py` - State sync tests
-- `tests/test_openai_connection.py` - Connection health tests
-
-## Utilities
-
-**Kill Ports Script:**
-```bash
-python utils/kill_ports.py  # Kills processes on ports 8000 and 3000
-```
-
 ## Project Structure
 
 ```
@@ -284,16 +254,6 @@ python utils/kill_ports.py  # Kills processes on ports 8000 and 3000
 - **OS:** Designed for Windows 11, may work on Linux (WSL tested)
 - **Audio Devices:** Supports any audio input device; automatically selects system default
 - **VB-Cable:** Required for speaker audio capture (loopback audio routing)
-
-## Contributing
-
-Contributions welcome!
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/YourFeature`)
-3. Commit changes (`git commit -m "Add your message"`)
-4. Push to fork (`git push origin feature/YourFeature`)
-5. Create Pull Request
 
 ## License
 
