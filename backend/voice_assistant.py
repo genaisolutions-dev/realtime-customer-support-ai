@@ -484,12 +484,12 @@ if __name__ == "__main__":
 
     background_context = read_file_input(
         "Background Context: Information about you, your expertise, or relevant background.",
-        "resume, profile, skills, experience"
+        "resume, profile, skills, experience, product catalog, company policies, FAQs"
     )
 
     task_context = read_file_input(
         "Task Context: What you're working on or trying to accomplish.",
-        "job description, project goals, current objective"
+        "job description, project goals, current objective, known issues, promotions, escalation procedures"
     )
 
     # Create config with model choice and optional context
