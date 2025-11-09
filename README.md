@@ -191,6 +191,58 @@ Select model (1 or 2) [default: 1]:
 - GPT-4o: `gpt-4o-realtime-preview-2024-10-01`
 - GPT-4o-mini: `gpt-4o-mini-realtime-preview-2024-12-17`
 
+## Optional: Providing Context
+
+After selecting a model, you can optionally provide context files to improve AI responses. This is useful for tailoring the assistant to your specific needs.
+
+### Background Context
+
+Provide information about yourself, your expertise, or relevant background:
+- Resume/CV (`.md`, `.txt`, etc.)
+- Professional profile
+- Skills and experience
+
+### Task Context
+
+Describe what you're working on or trying to accomplish:
+- Job description
+- Project goals
+- Current objectives
+
+### How to Provide Context
+
+When prompted, paste the **full file path** to your context file:
+
+**Windows:**
+```
+Enter file path (or press Enter to skip): C:\Users\name\Documents\resume.md
+✓ Loaded 2547 characters from resume.md
+```
+
+**Linux/Mac:**
+```
+Enter file path (or press Enter to skip): /home/name/documents/resume.md
+✓ Loaded 2547 characters from resume.md
+```
+
+**Relative Path:**
+```
+Enter file path (or press Enter to skip): ./my_resume.md
+✓ Loaded 2547 characters from my_resume.md
+```
+
+**To Skip:**
+```
+Enter file path (or press Enter to skip): [just press Enter]
+```
+
+### Notes
+
+- Paths with spaces are supported: `C:\Users\name\OneDrive - Company\Documents\file.md`
+- Context is sent once during session initialization (no impact on real-time audio processing)
+- Supported formats: `.md`, `.txt`, or any plain text file
+- Press Enter without input to skip and use the assistant without additional context
+
 ## Configuration
 
 ### Backend Configuration (`backend/config.py`)
