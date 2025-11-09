@@ -6,7 +6,6 @@ function createWindow () {
     width: 800,
     height: 600,
     resizable: true,   // Enable window resizing
-    minimizable: false, // Prevent window minimize
     minWidth: 400,     // Minimum usable width
     minHeight: 300,    // Minimum usable height
     maxWidth: 1600,    // Maximum width
@@ -33,23 +32,11 @@ function createWindow () {
     console.error(`Failed to load: ${errorDescription} (${errorCode})`);
   });
 
-  // Make sure the window is always on top
-  win.setAlwaysOnTop(true, 'floating')
+  // Make sure the window is always on top, even over fullscreen apps
+  win.setAlwaysOnTop(true, 'screen-saver')
 
   // Hide the window from the taskbar
   win.setSkipTaskbar(true)
-
-  // Prevent window from being minimized - restore immediately if minimize attempted
-  win.on('minimize', (event) => {
-    event.preventDefault()
-    win.restore()
-  })
-
-  // Prevent window from being hidden - show immediately if hide attempted
-  win.on('hide', () => {
-    win.show()
-    win.focus()
-  })
 
   win.once('ready-to-show', () => {
     win.show()
@@ -73,6 +60,17 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Handle Ctrl+C and process termination signals
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, quitting app...')
+  app.quit()
+})
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, quitting app...')
+  app.quit()
 })
 
 // Add these lines to handle any unhandled exceptions
