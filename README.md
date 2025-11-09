@@ -213,6 +213,17 @@ self.temperature = 0.6
 - **Spacebar:** Toggle pause/resume audio capture
 - **Window:** Drag via top bar, resize via bottom-right corner
 
+### Customizing Assistant Instructions
+
+The AI assistant's behavior, tone, and response format can be customized by editing the instructions in **`backend/config.py`** (lines 47-50).
+
+You can modify:
+- **Instructions** (`self.instructions`): Customize the assistant's behavior, response style, and output format
+- **Voice** (`self.voice`): Default is "alloy" - other options include "echo", "fable", "onyx", "nova", "shimmer"
+- **Temperature** (`self.temperature`): Controls response randomness (0.0-1.0, default: 0.6)
+
+**Note:** Changes require restarting the backend server to take effect.
+
 ## Technical Details
 
 ### Audio Processing
