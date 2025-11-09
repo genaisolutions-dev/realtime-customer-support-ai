@@ -431,12 +431,39 @@ if __name__ == "__main__":
         print("Invalid selection. Using GPT-4o Realtime (option 1)")
         model_choice = "1"
 
-    config = Config(model_choice=model_choice)
+    # Prompt for optional context to improve AI responses
+    print("\n" + "=" * 80)
+    print("OPTIONAL: Provide context to improve AI responses")
+    print("Press Enter to skip any field")
+    print("=" * 80)
+
+    print("\nBackground Context: Information about you, your expertise, or relevant background.")
+    print("Examples: resume, profile, skills, experience")
+    background_context = input("Enter background context (or press Enter to skip): ").strip()
+
+    print("\nTask Context: What you're working on or trying to accomplish.")
+    print("Examples: job description, project goals, current objective")
+    task_context = input("Enter task context (or press Enter to skip): ").strip()
+
+    # Create config with model choice and optional context
+    config = Config(model_choice=model_choice,
+                    background_context=background_context,
+                    task_context=task_context)
     logger = setup_logging('voice_assistant')
     logger.info(f"Selected model: {config.selected_model['display_name']}")
 
+    # Display context configuration status
+    if background_context or task_context:
+        print("\n✓ Context configured and will be included in AI instructions")
+        if background_context:
+            logger.info(f"Background context provided ({len(background_context)} chars)")
+        if task_context:
+            logger.info(f"Task context provided ({len(task_context)} chars)")
+    else:
+        print("\n✓ No additional context provided")
+
     # Prompt user for max number of API calls
-    max_api_calls_input = input("Enter maximum number of API calls (-1 for unlimited): ")
+    max_api_calls_input = input("\nEnter maximum number of API calls (-1 for unlimited): ")
     try:
         config.max_api_calls = int(max_api_calls_input)
         logger.info(f"Max API calls set to: {config.max_api_calls}")

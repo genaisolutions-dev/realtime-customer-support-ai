@@ -22,7 +22,7 @@ class Config:
         }
     }
 
-    def __init__(self, model_choice="1"):
+    def __init__(self, model_choice="1", background_context="", task_context=""):
         self.max_api_calls = -1  # Set from environment or parameters
         self.silence_threshold = 5
         self.cooldown_duration = 10
@@ -44,10 +44,21 @@ class Config:
         self.model_name = self.selected_model["name"]
         self.api_url = f"wss://api.openai.com/v1/realtime?model={self.model_name}"
 
-        self.instructions = """You are a helpful assistant. You are helping me answer interview questions.
-                               Respond in English only, regardless of the language of the question.
-                               Provide concise and direct answers. Present responses as bullet points.
-                               No markdown. Avoid unnecessary elaboration unless specifically requested."""
+        # Build base instructions
+        base_instructions = """You are a helpful assistant providing real-time support.
+                              Respond in English only, regardless of the language of the question.
+                              Provide concise and direct answers. Present responses as bullet points.
+                              No markdown. Avoid unnecessary elaboration unless specifically requested."""
+
+        # Append background context if provided
+        if background_context.strip():
+            base_instructions += f"\n\nBACKGROUND CONTEXT:\n{background_context.strip()}"
+
+        # Append task context if provided
+        if task_context.strip():
+            base_instructions += f"\n\nCURRENT TASK/OBJECTIVE:\n{task_context.strip()}"
+
+        self.instructions = base_instructions
         self.voice = "alloy"
         self.temperature = 0.6
         self.question_starters = ['what', 'when', 'where', 'who', 'why', 'how', 'can', 'could', 'would', 'will', 'do', 'does', 'is', 'are']
