@@ -411,35 +411,50 @@ class VoiceAssistant:
             self.process_audio_task.cancel()
             self.process_audio_task = None
 
-def read_multiline_input(prompt_text, examples):
+def read_file_input(prompt_text, examples):
     """
-    Read multiline input from user with END termination marker.
-    Supports pasting long text (resumes, job descriptions, etc.)
+    Read context from a file path provided by user.
+    Handles Windows/Linux paths, spaces, quotes, etc.
     """
     print(f"\n{prompt_text}")
     print(f"Examples: {examples}")
-    print("For multiline input: paste your content, then type 'END' on a new line and press Enter")
-    print("To skip: just press Enter")
+    print("\nProvide the full path to your file:")
+    print("  Windows: C:\\Users\\name\\Documents\\resume.md")
+    print("  Linux/Mac: /home/name/documents/resume.md")
+    print("  Relative: ./resume.md")
+    print("To skip: press Enter")
 
-    first_line = input("Enter context (or press Enter to skip): ").strip()
+    file_path = input("\nEnter file path (or press Enter to skip): ").strip()
 
     # If user just pressed Enter, skip
-    if not first_line:
+    if not file_path:
         return ""
 
-    # If user typed END, that means they want to skip
-    if first_line.upper() == "END":
+    # Remove surrounding quotes if present (users sometimes paste "C:\path")
+    if file_path.startswith('"') and file_path.endswith('"'):
+        file_path = file_path[1:-1]
+    if file_path.startswith("'") and file_path.endswith("'"):
+        file_path = file_path[1:-1]
+
+    # Normalize path (handles backslashes, forward slashes, etc.)
+    file_path = os.path.normpath(file_path)
+
+    # Check if file exists
+    if not os.path.isfile(file_path):
+        print(f"✗ File not found: {file_path}")
+        print("Skipping context input.")
         return ""
 
-    # If first line doesn't end with END, read more lines
-    lines = [first_line]
-    while True:
-        line = input()
-        if line.strip().upper() == "END":
-            break
-        lines.append(line)
-
-    return "\n".join(lines)
+    # Read file content
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            print(f"✓ Loaded {len(content)} characters from {os.path.basename(file_path)}")
+            return content
+    except Exception as e:
+        print(f"✗ Error reading file: {e}")
+        print("Skipping context input.")
+        return ""
 
 if __name__ == "__main__":
     # Load environment variables from .env file
@@ -466,12 +481,12 @@ if __name__ == "__main__":
     print("OPTIONAL: Provide context to improve AI responses")
     print("=" * 80)
 
-    background_context = read_multiline_input(
+    background_context = read_file_input(
         "Background Context: Information about you, your expertise, or relevant background.",
         "resume, profile, skills, experience"
     )
 
-    task_context = read_multiline_input(
+    task_context = read_file_input(
         "Task Context: What you're working on or trying to accomplish.",
         "job description, project goals, current objective"
     )
