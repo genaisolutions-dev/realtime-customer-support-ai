@@ -411,6 +411,36 @@ class VoiceAssistant:
             self.process_audio_task.cancel()
             self.process_audio_task = None
 
+def read_multiline_input(prompt_text, examples):
+    """
+    Read multiline input from user with END termination marker.
+    Supports pasting long text (resumes, job descriptions, etc.)
+    """
+    print(f"\n{prompt_text}")
+    print(f"Examples: {examples}")
+    print("For multiline input: paste your content, then type 'END' on a new line and press Enter")
+    print("To skip: just press Enter")
+
+    first_line = input("Enter context (or press Enter to skip): ").strip()
+
+    # If user just pressed Enter, skip
+    if not first_line:
+        return ""
+
+    # If user typed END, that means they want to skip
+    if first_line.upper() == "END":
+        return ""
+
+    # If first line doesn't end with END, read more lines
+    lines = [first_line]
+    while True:
+        line = input()
+        if line.strip().upper() == "END":
+            break
+        lines.append(line)
+
+    return "\n".join(lines)
+
 if __name__ == "__main__":
     # Load environment variables from .env file
     load_dotenv()
@@ -434,16 +464,17 @@ if __name__ == "__main__":
     # Prompt for optional context to improve AI responses
     print("\n" + "=" * 80)
     print("OPTIONAL: Provide context to improve AI responses")
-    print("Press Enter to skip any field")
     print("=" * 80)
 
-    print("\nBackground Context: Information about you, your expertise, or relevant background.")
-    print("Examples: resume, profile, skills, experience")
-    background_context = input("Enter background context (or press Enter to skip): ").strip()
+    background_context = read_multiline_input(
+        "Background Context: Information about you, your expertise, or relevant background.",
+        "resume, profile, skills, experience"
+    )
 
-    print("\nTask Context: What you're working on or trying to accomplish.")
-    print("Examples: job description, project goals, current objective")
-    task_context = input("Enter task context (or press Enter to skip): ").strip()
+    task_context = read_multiline_input(
+        "Task Context: What you're working on or trying to accomplish.",
+        "job description, project goals, current objective"
+    )
 
     # Create config with model choice and optional context
     config = Config(model_choice=model_choice,
