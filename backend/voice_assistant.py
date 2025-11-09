@@ -415,8 +415,25 @@ if __name__ == "__main__":
     # Load environment variables from .env file
     load_dotenv()
 
-    config = Config()
+    # Prompt user for model selection
+    print("\nAvailable OpenAI Realtime API models:")
+    print("=" * 80)
+    for key, model in Config.MODELS.items():
+        print(f"\n{key}. {model['display_name']}")
+        print(f"   Audio Input:  {model['audio_input_price']}")
+        print(f"   Audio Output: {model['audio_output_price']}")
+        print(f"   Text Input:   {model['text_input_price']}")
+        print(f"   Text Output:  {model['text_output_price']}")
+    print("=" * 80)
+
+    model_choice = input("\nSelect model (1 or 2) [default: 1]: ").strip()
+    if model_choice not in ["1", "2"]:
+        print("Invalid selection. Using GPT-4o Realtime (option 1)")
+        model_choice = "1"
+
+    config = Config(model_choice=model_choice)
     logger = setup_logging('voice_assistant')
+    logger.info(f"Selected model: {config.selected_model['display_name']}")
 
     # Prompt user for max number of API calls
     max_api_calls_input = input("Enter maximum number of API calls (-1 for unlimited): ")

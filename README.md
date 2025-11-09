@@ -148,6 +148,49 @@ npm start  # Builds and launches Electron app
 
 **Important:** Start backend before frontend.
 
+## Model Selection
+
+The application supports two OpenAI Realtime API models with different pricing tiers:
+
+| Model | Audio Input | Audio Output | Text Input | Text Output |
+|-------|-------------|--------------|------------|-------------|
+| **GPT-4o Realtime (Premium)** | $100/1M tokens (~$0.06/min) | $200/1M tokens (~$0.24/min) | $5/1M tokens | $20/1M tokens |
+| **GPT-4o-mini Realtime (Cheaper)** | $10/1M tokens (~$0.006/min) | $20/1M tokens (~$0.024/min) | $0.60/1M tokens | $2.40/1M tokens |
+
+**GPT-4o-mini is approximately 10x cheaper** than GPT-4o for audio processing.
+
+### Selecting a Model
+
+When starting the backend, you'll be prompted to select a model:
+
+```
+Available OpenAI Realtime API models:
+================================================================================
+
+1. GPT-4o Realtime (Premium)
+   Audio Input:  $100/1M tokens (~$0.06/min)
+   Audio Output: $200/1M tokens (~$0.24/min)
+   Text Input:   $5/1M tokens
+   Text Output:  $20/1M tokens
+
+2. GPT-4o-mini Realtime (Cheaper - 10x)
+   Audio Input:  $10/1M tokens (~$0.006/min)
+   Audio Output: $20/1M tokens (~$0.024/min)
+   Text Input:   $0.60/1M tokens
+   Text Output:  $2.40/1M tokens
+================================================================================
+
+Select model (1 or 2) [default: 1]:
+```
+
+- Enter **1** for GPT-4o Realtime (premium performance)
+- Enter **2** for GPT-4o-mini Realtime (cost-effective option)
+- Press Enter without input to default to GPT-4o
+
+**Model IDs:**
+- GPT-4o: `gpt-4o-realtime-preview-2024-10-01`
+- GPT-4o-mini: `gpt-4o-mini-realtime-preview-2024-12-17`
+
 ## Configuration
 
 ### Backend Configuration (`backend/config.py`)
@@ -158,7 +201,8 @@ self.frame_duration_ms = 20  # Audio frame duration (ms)
 self.channels = 1  # Mono audio
 self.max_api_calls = -1  # -1 = unlimited
 self.cooldown_duration = 10  # Seconds
-self.api_url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
+self.model_name = self.selected_model["name"]  # Selected during startup
+self.api_url = f"wss://api.openai.com/v1/realtime?model={self.model_name}"  # Dynamic based on model choice
 self.instructions = "..."  # OpenAI assistant instructions
 self.temperature = 0.6
 ```
