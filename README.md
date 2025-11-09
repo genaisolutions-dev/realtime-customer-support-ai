@@ -70,7 +70,7 @@ Whether you're interviewing for your dream job, preparing for technical screenin
 
 ## Screenshots
 
-![OpenAI Virtual Teleprompter Interface](img/OpenAI-Virtual-Prompter.png)
+![OpenAI Virtual Teleprompter Interface](img/Screenshot-ui.png)
 
 This screenshot showcases the OpenAI Virtual Teleprompter interface, featuring:
 - A "Start Listening" button to begin speech recognition
