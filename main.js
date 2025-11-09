@@ -6,6 +6,7 @@ function createWindow () {
     width: 800,
     height: 600,
     resizable: true,   // Enable window resizing
+    minimizable: false, // Prevent window minimize
     minWidth: 400,     // Minimum usable width
     minHeight: 300,    // Minimum usable height
     maxWidth: 1600,    // Maximum width
@@ -37,6 +38,18 @@ function createWindow () {
 
   // Hide the window from the taskbar
   win.setSkipTaskbar(true)
+
+  // Prevent window from being minimized - restore immediately if minimize attempted
+  win.on('minimize', (event) => {
+    event.preventDefault()
+    win.restore()
+  })
+
+  // Prevent window from being hidden - show immediately if hide attempted
+  win.on('hide', () => {
+    win.show()
+    win.focus()
+  })
 
   win.once('ready-to-show', () => {
     win.show()
