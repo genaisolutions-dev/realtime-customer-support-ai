@@ -139,9 +139,14 @@
 }
 
 .response-display pre {
+  display: inline;
   white-space: pre-wrap;
   color: white;
   margin: 0;
+  background-color: rgba(0, 0, 0, 0.85); /* Dark background behind each line of text, like YouTube captions */
+  padding: 4px 8px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .response-display .current-response-text {
