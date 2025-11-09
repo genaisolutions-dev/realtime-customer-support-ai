@@ -238,7 +238,7 @@ Enter file path (or press Enter to skip): [just press Enter]
 
 ### Notes
 
-- Paths with spaces are supported: `C:\Users\name\OneDrive - Company\Documents\file.md`
+- Paths with spaces are supported: `C:\Users\name\My Documents\Projects\file.md`
 - Context is sent once during session initialization (no impact on real-time audio processing)
 - Supported formats: `.md`, `.txt`, or any plain text file
 - Press Enter without input to skip and use the assistant without additional context
