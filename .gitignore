@@ -146,3 +146,4 @@ docs/
 claude-3.5-sonnet
 .claude/
 CLAUDE.md
+.roomodes.json
