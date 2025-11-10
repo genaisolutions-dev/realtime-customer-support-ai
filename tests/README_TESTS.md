@@ -1,4 +1,4 @@
-# Test Suite for OpenAI Virtual Teleprompter
+# Test Suite for Real-Time Customer Support AI
 
 ## Overview
 
@@ -267,7 +267,7 @@ AttributeError: Mock object has no attribute 'X'
 2. ⏭️ Run baseline tests (expect failures)
 3. ⏭️ Implement minimal fixes (Phase 2: Green)
 4. ⏭️ Refactor and clean up (Phase 3: Blue)
-5. ⏭️ Validate with real interview scenario
+5. ⏭️ Validate with real customer service scenario
 
 ## References
 

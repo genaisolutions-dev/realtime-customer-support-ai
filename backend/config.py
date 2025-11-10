@@ -45,10 +45,11 @@ class Config:
         self.api_url = f"wss://api.openai.com/v1/realtime?model={self.model_name}"
 
         # Build base instructions
-        base_instructions = """You are a helpful assistant providing real-time support.
-                              Respond in English only, regardless of the language of the question.
+        base_instructions = """You are a helpful AI assistant supporting customer service agents in real-time.
+                              Your role is to provide quick, accurate information to help agents respond to customer inquiries.
                               Provide concise and direct answers. Present responses as bullet points.
-                              No markdown. Avoid unnecessary elaboration unless specifically requested."""
+                              No markdown. Avoid unnecessary elaboration unless specifically requested.
+                              Focus on actionable information that agents can communicate to customers immediately."""
 
         # Append background context if provided
         if background_context.strip():

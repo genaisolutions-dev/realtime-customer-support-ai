@@ -1,7 +1,7 @@
 {
-  "name": "openai-virtual-prompter",
+  "name": "realtime-customer-support-ai",
   "version": "1.0.0",
-  "description": "",
+  "description": "Real-time AI assistance for customer service teams. A transparent desktop overlay providing instant, context-aware support during live customer interactions.",
   "main": "main.js",
   "scripts": {
     "start": "npm run build && electron .",

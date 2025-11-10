@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an **OpenAI Virtual Teleprompter** - an Electron desktop application with a Python WebSocket backend that provides real-time speech-to-text transcription and AI assistance using OpenAI's Realtime API. The application captures audio from a microphone, processes it through OpenAI's API, and displays responses in a transparent, always-on-top floating window.
+This is a **Real-Time Customer Support AI** - an Electron desktop application with a Python WebSocket backend that provides real-time AI assistance for customer service teams using OpenAI's Realtime API. The application captures audio from a microphone, processes it through OpenAI's API, and displays responses in a transparent, always-on-top floating window.
 
-**Primary Use Case**: Interview assistance - helping users answer questions with concise, bullet-point responses in real-time during virtual meetings.
+**Primary Use Case**: Customer service support - helping agents respond to customer inquiries with instant access to company policies, product information, and troubleshooting procedures during live customer interactions.
 
 ## Architecture
 
@@ -454,11 +454,13 @@ When using SSH commands, always use the `-q` flag for quiet mode.
 
 ## Assistant Instructions Configuration
 
-The AI assistant instructions are configured in `config.py:22-24`:
+The AI assistant instructions are configured in `config.py` (lines 48-52):
 ```python
-self.instructions = """You are a helpful assistant. You are helping me answer interview questions.
-                       Provide concise and direct answers. Present responses as bullet points.
-                       No markdown. Avoid unnecessary elaboration unless specifically requested."""
+base_instructions = """You are a helpful AI assistant supporting customer service agents in real-time.
+                      Your role is to provide quick, accurate information to help agents respond to customer inquiries.
+                      Provide concise and direct answers. Present responses as bullet points.
+                      No markdown. Avoid unnecessary elaboration unless specifically requested.
+                      Focus on actionable information that agents can communicate to customers immediately."""
 ```
 
-Modify this to change the assistant's behavior and response style.
+Context is then appended from optional files provided at startup (company policies, product catalogs, etc.). Modify the base instructions to change the assistant's behavior and response style.

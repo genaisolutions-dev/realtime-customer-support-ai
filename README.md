@@ -1,6 +1,17 @@
-# OpenAI Virtual Teleprompter
+# Real-Time Customer Support AI
 
-A desktop application that captures audio from system speakers, processes it through OpenAI's Realtime API, and displays AI-generated text responses in a transparent, always-on-top overlay window.
+A desktop application that provides real-time AI assistance for customer service teams. The application captures audio from microphone input, processes it through OpenAI's Realtime API, and displays AI-generated responses in a transparent, always-on-top overlay window—visible even during Zoom calls, CRM screenshares, and fullscreen applications.
+
+## Why This Tool?
+
+Customer service agents face an impossible challenge: know thousands of policies, products, and procedures while maintaining perfect accuracy and empathy during live customer interactions. Traditional knowledge bases require context switching (Alt+Tab to search documentation, interrupting conversation flow). This tool eliminates that friction.
+
+**Key Differentiators:**
+- **No Context Switching**: Always-on-top overlay stays visible over all applications
+- **Audio Integration**: Listens to conversations in real-time, no copy/paste needed
+- **Persistent Context**: Load company policies once at startup, not re-entered per query
+- **Hands-Free**: Agents keep typing in CRM while AI listens and responds
+- **Cost-Effective**: ~$0.006/minute with GPT-4o-mini (10x cheaper than GPT-4o)
 
 ## Technical Stack
 
@@ -23,14 +34,14 @@ The application runs as two separate processes:
 
 1. **Python Backend** (`backend/start_websocket_server.py`):
    - WebSocket server on `ws://localhost:8000`
-   - Audio capture from system recording device
+   - Audio capture from microphone
    - OpenAI Realtime API integration
    - Voice Activity Detection (VAD)
    - Audio buffer management
 
 2. **Electron Frontend** (`main.js` + React components):
    - Transparent, frameless window
-   - Always-on-top overlay
+   - Always-on-top overlay (visible over fullscreen apps)
    - WebSocket client
    - Real-time text display
    - User controls (start/pause/opacity)
@@ -38,7 +49,7 @@ The application runs as two separate processes:
 ### Data Flow
 
 ```
-Audio Input → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Frontend Display
+Microphone → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Frontend Display
 ```
 
 ## Prerequisites
@@ -46,8 +57,8 @@ Audio Input → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Fron
 - **Python 3.10+** (recommended for dependency compatibility)
 - **Node.js 14+** and npm
 - **OpenAI API Key** ([get one here](https://platform.openai.com/api-keys))
-- **Windows OS** (designed for Windows 11, may work on Linux/macOS)
-- **VB-Audio Virtual Cable** (for routing speaker audio to recording device)
+- **Windows OS** (designed for Windows 11, should work on Linux/macOS)
+- **Microphone** (built-in laptop mic, USB microphone, or headset)
 
 ## Installation
 
@@ -56,8 +67,8 @@ Audio Input → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Fron
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/raoulbia-ai/gpt-meeting-assistant-electron.git
-   cd gpt-meeting-assistant-electron
+   git clone https://github.com/genaisolutions-dev/realtime-customer-support-ai.git
+   cd realtime-customer-support-ai
    ```
 
 2. **Create Python Virtual Environment**
@@ -101,11 +112,11 @@ Audio Input → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Fron
 1. **Install Node.js Dependencies**
 
    ```bash
-   cd ..  # Return to project root
+   # From project root
    npm install
    ```
 
-2. **Build Frontend**
+2. **Build Frontend Assets**
 
    ```bash
    npm run build
@@ -113,267 +124,351 @@ Audio Input → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Fron
 
 ### Audio Device Setup (Windows)
 
-To capture audio from speakers (e.g., from video calls), configure VB-Audio Virtual Cable:
+On first run, the backend will automatically select your Windows default microphone. If no default is set, you'll be prompted to choose from available devices.
 
-1. Download VB-Audio Virtual Cable from https://vb-audio.com/Cable/
-2. Extract ZIP and run `VBCABLE_Setup_x64.exe` as administrator
-3. Restart computer
-4. Open Sound Control Panel (`Win+R` → `mmsys.cpl`)
-5. **Playback tab**: Set "CABLE Input" as Default Device
-6. **Recording tab**: Set "CABLE Output" as Default Device
-7. **Recording tab**: Right-click "CABLE Output" → Properties → Levels → Set volume to 100%
-8. **Recording tab**: Right-click "CABLE Output" → Properties → Listen tab:
-   - Check "Listen to this device"
-   - Select your speakers from dropdown
-   - Click OK
-
-Result: System audio routes through virtual cable to the application while you still hear it through speakers.
+**To change your default microphone:**
+1. Right-click the speaker icon in the Windows taskbar
+2. Select "Sound settings"
+3. Under "Input", choose your preferred microphone
+4. Restart the backend to apply changes
 
 ## Running the Application
 
-**Two terminals required:**
+**You must run both backend and frontend in separate terminals:**
 
-**Terminal 1 - Backend:**
-```powershell
+### Terminal 1: Start Backend
+
+```bash
 cd backend
-.\venv\Scripts\Activate.ps1
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/macOS
 python start_websocket_server.py
 ```
-On first run, select audio device ("CABLE Output" if using VB-Audio Cable).
 
-**Terminal 2 - Frontend:**
-```powershell
-npm start  # Builds and launches Electron app
+**On first run**, you'll be prompted to:
+1. Select OpenAI model (GPT-4o or GPT-4o-mini)
+2. Optionally provide context files (company policies, product catalog, etc.)
+
+### Terminal 2: Start Frontend
+
+```bash
+# From project root
+npm start
 ```
 
-**Important:** Start backend before frontend.
+The transparent overlay window will appear. Click "Start Listening" to begin capturing audio.
+
+**Important**: Backend must be running BEFORE starting frontend.
 
 ## Model Selection
 
 The application supports two OpenAI Realtime API models with different pricing tiers:
 
-| Model | Audio Input | Audio Output | Text Input | Text Output |
-|-------|-------------|--------------|------------|-------------|
-| **GPT-4o Realtime (Premium)** | $100/1M tokens (~$0.06/min) | $200/1M tokens (~$0.24/min) | $5/1M tokens | $20/1M tokens |
-| **GPT-4o-mini Realtime (Cheaper)** | $10/1M tokens (~$0.006/min) | $20/1M tokens (~$0.024/min) | $0.60/1M tokens | $2.40/1M tokens |
+| Model | Audio Input | Audio Output | Text Input | Text Output | Use Case |
+|-------|-------------|--------------|------------|-------------|----------|
+| **GPT-4o Realtime** | ~$0.06/min | ~$0.24/min | $5/1M tokens | $20/1M tokens | Complex queries, nuanced responses |
+| **GPT-4o-mini Realtime** | ~$0.006/min | ~$0.024/min | $0.60/1M tokens | $2.40/1M tokens | Most customer service use cases |
 
-**GPT-4o-mini is approximately 10x cheaper** than GPT-4o for audio processing.
+**GPT-4o-mini is approximately 10x cheaper** and sufficient for most customer service scenarios. GPT-4o provides better reasoning for complex technical support or high-stakes interactions.
 
 ### Selecting a Model
 
-When starting the backend, you'll be prompted to select a model:
+When the backend starts, you'll see:
 
 ```
-Available OpenAI Realtime API models:
-================================================================================
+Select OpenAI Realtime Model:
 
 1. GPT-4o Realtime (Premium)
-   Audio Input:  $100/1M tokens (~$0.06/min)
-   Audio Output: $200/1M tokens (~$0.24/min)
-   Text Input:   $5/1M tokens
-   Text Output:  $20/1M tokens
+   Audio: ~$0.06/min input, ~$0.24/min output
+   Text: $5/1M input, $20/1M output
 
 2. GPT-4o-mini Realtime (Cheaper - 10x)
-   Audio Input:  $10/1M tokens (~$0.006/min)
-   Audio Output: $20/1M tokens (~$0.024/min)
-   Text Input:   $0.60/1M tokens
-   Text Output:  $2.40/1M tokens
-================================================================================
+   Audio: ~$0.006/min input, ~$0.024/min output
+   Text: $0.60/1M input, $2.40/1M output
 
-Select model (1 or 2) [default: 1]:
+Enter choice (1 or 2):
 ```
 
-- Enter **1** for GPT-4o Realtime (premium performance)
-- Enter **2** for GPT-4o-mini Realtime (cost-effective option)
-- Press Enter without input to default to GPT-4o
+**Recommendation**: Start with GPT-4o-mini. Upgrade to GPT-4o only if you need more sophisticated reasoning.
 
-**Model IDs:**
-- GPT-4o: `gpt-4o-realtime-preview-2024-10-01`
-- GPT-4o-mini: `gpt-4o-mini-realtime-preview-2024-12-17`
+**Cost Estimation** (1-hour customer service shift, GPT-4o-mini):
+- Audio processing: ~$0.36/hour
+- Text responses: Negligible for typical conversations
+- **Total**: ~$0.40/hour per agent
 
 ## Optional: Providing Context
 
-After selecting a model, you can optionally provide context files to improve AI responses. This is useful for tailoring the assistant to your specific needs.
+The application's power comes from **context engineering** - loading your company's knowledge base at startup so the AI can provide domain-specific assistance.
 
 ### Background Context
 
-Provide information about yourself, your expertise, or relevant background:
-- Resume/CV (`.md`, `.txt`, etc.)
-- Professional profile
-- Skills and experience
+**What it is**: Core company knowledge that rarely changes.
+
+**Examples**:
+- Company policies (return policy, warranty terms, privacy policy)
+- Product catalog (features, specifications, pricing)
+- FAQs (frequently asked questions and approved answers)
+- Troubleshooting guides (common issues and solutions)
+- Service procedures (how to process returns, refunds, escalations)
 
 ### Task Context
 
-Describe what you're working on or trying to accomplish:
-- Job description
-- Project goals
-- Current objectives
+**What it is**: Current operational information and procedures.
+
+**Examples**:
+- Escalation procedures (when to transfer to supervisor, technical team)
+- Known issues (current outages, shipping delays, product defects)
+- Active promotions (discount codes, seasonal offers)
+- SLA requirements (response time targets, resolution expectations)
+- Compliance guidelines (GDPR, HIPAA, industry-specific regulations)
 
 ### How to Provide Context
 
-When prompted, paste the **full file path** to your context file:
+When the backend starts, you'll be prompted:
 
-**Windows:**
 ```
-Enter file path (or press Enter to skip): C:\Users\name\Documents\resume.md
-✓ Loaded 2547 characters from resume.md
-```
+OPTIONAL: Provide context to improve AI responses
+================================================================================
 
-**Linux/Mac:**
-```
-Enter file path (or press Enter to skip): /home/name/documents/resume.md
-✓ Loaded 2547 characters from resume.md
-```
+Background Context: Company knowledge base, policies, and product information.
+Examples: company policies, product catalog, FAQs, troubleshooting guides, service procedures
 
-**Relative Path:**
-```
-Enter file path (or press Enter to skip): ./my_resume.md
-✓ Loaded 2547 characters from my_resume.md
+Provide the full path to your file:
+  Windows: C:\Users\name\Documents\company_policies.md
+  Linux/Mac: /home/name/documents/company_policies.md
+  Relative: ./company_policies.md
+To skip: press Enter
+
+Enter file path (or press Enter to skip):
 ```
 
-**To Skip:**
+**Best Practices**:
+- Use Markdown (.md) or plain text (.txt) files
+- Organize content with clear headings and bullet points
+- Keep each file focused (separate policies from product info)
+- Update files when policies change, restart backend to reload
+
+**Example File Structure**:
 ```
-Enter file path (or press Enter to skip): [just press Enter]
+customer-service-docs/
+├── company_policies.md        # Return policy, warranty, privacy
+├── product_catalog.md          # Product features, specs, pricing
+├── troubleshooting_guide.md    # Common issues and solutions
+└── escalation_procedures.md    # When and how to escalate
 ```
 
 ### Notes
 
-- Paths with spaces are supported: `C:\Users\name\My Documents\Projects\file.md`
-- Context is sent once during session initialization (no impact on real-time audio processing)
-- Supported formats: `.md`, `.txt`, or any plain text file
-- Press Enter without input to skip and use the assistant without additional context
+- Context is loaded once at startup and persists for the entire session
+- Both context files are optional (press Enter to skip)
+- Files are injected directly into the AI's system prompt
+- No size limit, but keep content focused (AI performs better with concise, well-organized information)
 
 ## Configuration
 
 ### Backend Configuration (`backend/config.py`)
 
-```python
-self.rate = 48000  # Audio sample rate (Hz)
-self.frame_duration_ms = 20  # Audio frame duration (ms)
-self.channels = 1  # Mono audio
-self.max_api_calls = -1  # -1 = unlimited
-self.cooldown_duration = 10  # Seconds
-self.model_name = self.selected_model["name"]  # Selected during startup
-self.api_url = f"wss://api.openai.com/v1/realtime?model={self.model_name}"  # Dynamic based on model choice
-self.instructions = "..."  # OpenAI assistant instructions
-self.temperature = 0.6
-```
+**Audio Settings**:
+- Sample rate: 48000 Hz
+- Frame duration: 20ms
+- Format: PCM16 mono audio
+
+**OpenAI API Settings**:
+- Model: Selected at startup (GPT-4o or GPT-4o-mini)
+- Voice: "alloy"
+- Temperature: 0.6
+- Turn detection: Server-side VAD (threshold 0.5, silence 200ms)
+
+**Session Management**:
+- Auto-reconnect every 10 minutes (bypasses OpenAI's 15-minute session limit)
 
 ### Frontend Configuration
 
-- **Opacity Slider:** Adjusts window transparency (0.0 - 1.0)
-- **Spacebar:** Toggle pause/resume audio capture
-- **Window:** Drag via top bar, resize via bottom-right corner
+The Electron window is configured for customer service workflows:
+- **Always-on-top**: Uses `'screen-saver'` level (highest priority, visible over fullscreen apps)
+- **Transparent background**: Overlays on top of CRM, Zoom, screenshares
+- **Frameless**: No title bar (minimalist design)
+- **Draggable**: Click and drag header to reposition
 
 ### Customizing Assistant Instructions
 
-The AI assistant's behavior, tone, and response format can be customized by editing the instructions in **`backend/config.py`** (lines 47-50).
+Default instructions are optimized for customer service in `backend/config.py` (lines 48-52):
 
-You can modify:
-- **Instructions** (`self.instructions`): Customize the assistant's behavior, response style, and output format
-- **Voice** (`self.voice`): Default is "alloy" - other options include "echo", "fable", "onyx", "nova", "shimmer"
-- **Temperature** (`self.temperature`): Controls response randomness (0.0-1.0, default: 0.6)
+```python
+base_instructions = """You are a helpful AI assistant supporting customer service agents in real-time.
+                      Your role is to provide quick, accurate information to help agents respond to customer inquiries.
+                      Provide concise and direct answers. Present responses as bullet points.
+                      No markdown. Avoid unnecessary elaboration unless specifically requested.
+                      Focus on actionable information that agents can communicate to customers immediately."""
+```
 
-**Note:** Changes require restarting the backend server to take effect.
+**To customize**:
+1. Edit `backend/config.py`
+2. Modify the `base_instructions` string
+3. Restart the backend
+
+**Customization ideas**:
+- Add brand voice guidelines ("Always use positive, empathetic language")
+- Specify compliance requirements ("Include GDPR disclaimer for EU customers")
+- Add escalation triggers ("Suggest supervisor transfer if customer mentions 'lawyer' or 'lawsuit'")
 
 ## Technical Details
 
 ### Audio Processing
 
-- **Sample Rate:** 48000 Hz
-- **Format:** PCM16 (16-bit signed integers)
-- **Frame Duration:** 20ms
-- **Encoding:** Base64 for OpenAI API transmission
-- **VAD:** WebRTC Voice Activity Detection (sensitivity level 1)
+- **PyAudio** captures microphone input at 48kHz sample rate
+- **WebRTC VAD** detects speech vs. silence with configurable sensitivity
+- Audio accumulates in a buffer until speech is detected
+- Buffer sent to OpenAI API when pause button pressed or speech threshold met
+- Responses broadcast to frontend via WebSocket
+
+**Sensitivity Tuning** (`backend/audio_capture.py:31`):
+```python
+self.speech_frames_threshold = int(0.1 * frames_per_second)  # 0.1 second
+```
+Lower = more sensitive (captures shorter speech), higher = less sensitive.
 
 ### WebSocket Protocol
 
-**Backend → Frontend Messages:**
+**Backend → Frontend Messages**:
 ```json
 {"type": "status", "status": "listening|paused|ready", "is_listening": bool, "is_paused": bool}
 {"type": "response", "data": "AI response text"}
 {"type": "transcript", "delta": "partial transcription"}
 {"type": "api_call_count", "count": 123}
 {"type": "audio_level", "level": 0-100}
-{"type": "error", "error": {"message": "...", "code": "..."}}
+{"type": "error", "error": {"message": "...", "code": "device_error|connection_lost|timeout"}}
 ```
 
-**Frontend → Backend Messages:**
+**Frontend → Backend Messages**:
 ```json
 {"type": "control", "action": "start_listening|pause_listening|resume_listening|stop_listening"}
 ```
 
 ### OpenAI Realtime API
 
-- **Endpoint:** `wss://api.openai.com/v1/realtime`
-- **Model:** `gpt-4o-realtime-preview-2024-10-01`
-- **Modalities:** text, audio
-- **Session Duration:** Auto-reconnects every 10 minutes (15-minute OpenAI limit)
-- **Voice:** alloy
-- **Turn Detection:** Server-side VAD (0.5 threshold, 200ms silence duration)
+**WebSocket URL**:
+```
+wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01
+```
+(Model name changes based on selection at startup)
+
+**Session Configuration**:
+- Modalities: `["text", "audio"]`
+- Turn detection: Server-side VAD (0.5 threshold, 200ms silence)
+- Instructions: Base instructions + optional context files (appended at session initialization)
+
+**Key Insight**: Session configuration is sent ONCE when WebSocket connects. Context files are injected at this point, meaning zero latency for domain-specific knowledge during conversations.
 
 ### Electron Window
 
-- **Transparent:** `true`
-- **Frameless:** `true`
-- **Always on Top:** `true` (floating level)
-- **Skip Taskbar:** `true`
-- **Resizable:** `true` (400-1600px width, 300-1200px height)
+**Always-on-Top Configuration** (`main.js:37`):
+```javascript
+win.setAlwaysOnTop(true, 'screen-saver')
+```
+
+The `'screen-saver'` level is the highest window priority in Electron, ensuring the overlay remains visible even when customers screenshare their desktop or during fullscreen Zoom calls.
 
 ## Logging
 
-Logs stored in `backend/logs/` directory:
-- `voice_assistant.log` - Main application log
-- `openai_client.log` - OpenAI API communication
-- `audio_capture.log` - Audio device and capture events
-- `websocket_manager.log` - WebSocket server events
+**Backend Logs**:
+- Location: `backend/logs/`
+- Files: `voice_assistant.log`, `audio_capture.log`, `openai_client.log`, etc.
+- Rotation: Daily, 7-day retention
 
-Rotation: 10MB max file size, 5 backup files.
+**Log Levels**:
+- INFO: Normal operations (session start, audio buffer status)
+- WARNING: Recoverable issues (connection drops, retries)
+- ERROR: Failures (audio device not found, API errors)
+
+**To view logs**:
+```bash
+tail -f backend/logs/voice_assistant.log
+```
 
 ## Project Structure
 
 ```
-.
+realtime-customer-support-ai/
 ├── backend/
-│   ├── start_websocket_server.py   # Entry point
-│   ├── config.py                   # Configuration
+│   ├── start_websocket_server.py   # Backend entry point
+│   ├── config.py                   # Configuration (API keys, instructions)
 │   ├── voice_assistant.py          # Main orchestrator
 │   ├── audio_capture.py            # PyAudio + VAD
 │   ├── openai_client.py            # OpenAI API client
 │   ├── websocket_manager.py        # WebSocket server
 │   ├── response_processor.py       # Response handling
+│   ├── constants.py                # Error codes, status values
 │   ├── common_logging.py           # Logging setup
-│   ├── constants.py                # Error codes, constants
 │   └── requirements.txt            # Python dependencies
 ├── src/
 │   ├── FloatingPrompter.js         # Main React component
 │   ├── FloatingPrompter.css        # Styles
 │   └── renderer.js                 # React entry point
 ├── main.js                         # Electron main process
-├── index.html                      # Electron window HTML
 ├── package.json                    # Node.js dependencies
-├── webpack.config.js               # Webpack build config
-└── .env.example                    # Environment variables template
+├── webpack.config.js               # Build configuration
+├── tests/                          # Test suite
+│   ├── test_push_to_talk.py
+│   ├── test_buffer_race_conditions.py
+│   ├── test_state_synchronization.py
+│   └── README_TESTS.md
+└── README.md                       # This file
 ```
+
+## Use Cases
+
+### Technical Support (SaaS)
+Load product documentation, API reference, known bugs, troubleshooting steps. AI provides exact solutions from your docs during live support calls.
+
+### E-commerce Customer Service
+Load return policy, shipping information, product catalog. AI answers "Can I return this?" with specific policy details and deadlines.
+
+### Healthcare Patient Support
+Load insurance policies, appointment procedures, privacy regulations. AI guides agents through HIPAA-compliant responses.
+
+### Financial Services
+Load account types, fee schedules, fraud procedures. AI provides accurate policy information while flagging compliance requirements.
+
+### Telecommunications Support
+Load service plans, troubleshooting guides, coverage maps. AI walks agents through modem resets, line testing, tech dispatch.
 
 ## Environment and Compatibility
 
-- **OS:** Designed for Windows 11, may work on Linux (WSL tested)
-- **Audio Devices:** Supports any audio input device; automatically selects system default
-- **VB-Cable:** Required for speaker audio capture (loopback audio routing)
+**Tested on**:
+- Windows 11 (WSL2 for development)
+- Python 3.10, 3.11
+- Node.js 14+
+
+**Should work on**:
+- Windows 10
+- Linux (Ubuntu 20.04+)
+- macOS (untested)
+
+**Known Limitations**:
+- Designed for agent workflows (microphone input), not dual-microphone meeting scenarios
+- Session timeout: OpenAI limits sessions to 15 minutes (auto-reconnects at 10 minutes)
+- Proof of concept: Expect bugs, edge cases
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT License - see LICENSE file for details.
 
 ## Acknowledgments
 
-- **OpenAI** - Realtime API
-- **Electron** - Desktop application framework
-- **PyAudio** - Audio I/O library
-- **WebRTC VAD** - Voice Activity Detection
-- **VB-Audio** - Virtual Cable driver
+- Built with OpenAI Realtime API
+- Developed using AI-assisted coding
+- Open source contributions welcome
 
----
+## Contributing
 
-**Note:** This is a Proof of Concept (PoC). Users may encounter bugs or issues. For questions or issues, please open a GitHub issue.
+This is an open-source project under MIT license. Contributions are welcome!
+
+**Areas for improvement**:
+- Additional use case examples
+- Better context engineering patterns
+- Multi-language support
+- CRM integrations
+- Analytics dashboard
+
+Fork the repo, make improvements, submit a pull request.

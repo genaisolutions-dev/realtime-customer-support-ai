@@ -24,7 +24,7 @@ const PrompterHeader = React.memo(({ opacity, isMinimized, onMinimize, onClose, 
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <span className="drag-handle" aria-label="Drag handle">☰</span>
-      <span className="app-title">OpenAI Virtual Teleprompter</span>
+      <span className="app-title">Real-Time Customer Support AI</span>
       <ConnectionHealthIndicator connectionHealth={connectionHealth} />
     </div>
     <div className="header-controls">
