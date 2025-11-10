@@ -144,3 +144,4 @@ backend/logs
 dist/
 docs/
 claude-3.5-sonnet
+.claude/
