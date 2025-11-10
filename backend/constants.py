@@ -1,5 +1,5 @@
 """
-Constants for OpenAI Virtual Teleprompter backend
+Constants for Real-Time Customer Support AI backend
 
 This module defines shared constants for status messages, error codes, and other
 configuration values used across the backend.

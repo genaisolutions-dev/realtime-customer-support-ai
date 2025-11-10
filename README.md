@@ -446,7 +446,7 @@ Load service plans, troubleshooting guides, coverage maps. AI walks agents throu
 - macOS (untested)
 
 **Known Limitations**:
-- Designed for agent workflows (microphone input), not dual-microphone meeting scenarios
+- Designed for agent workflows with single microphone input
 - Session timeout: OpenAI limits sessions to 15 minutes (auto-reconnects at 10 minutes)
 - Proof of concept: Expect bugs, edge cases
 
