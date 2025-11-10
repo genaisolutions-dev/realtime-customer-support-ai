@@ -52,6 +52,48 @@ The application runs as two separate processes:
 Microphone → PyAudio → VAD → Buffer → OpenAI API → WebSocket → Frontend Display
 ```
 
+## Key Technical Decisions
+
+### Session-Level Context Injection
+
+**The Problem:** Agents need instant access to company knowledge (policies, product specs, troubleshooting steps). Sending this context with every API request creates latency, costs more, and hits token limits.
+
+**The Solution:** Load company knowledge once when the session starts. The AI "knows" your entire product catalog, FAQ database, and escalation procedures for the entire shift.
+
+**Why it matters:** When an agent asks "What's our return policy for defective products?", the response is instant. No processing delay, no re-reading context, just immediate answers. This architecture decision alone makes the difference between a useful tool and one that disrupts workflow.
+
+### Two-Process Architecture
+
+Think of it like this: the backend is the engine (audio processing, AI communication), and the frontend is the dashboard (UI, controls). They run as separate processes communicating via WebSocket.
+
+**Why this matters:** Real-time audio processing at 48kHz means handling 960 samples every 20 milliseconds. If your UI framework interferes with that timing, you get audio dropouts. Separating them keeps the audio engine running smoothly while the overlay stays responsive.
+
+### Four Technical Challenges (and Solutions)
+
+**1. Cost: $29/day vs. $3/day per agent**
+
+GPT-4o costs $0.06/minute. For an 8-hour shift, that's ~$29/agent/day. GPT-4o-mini is 10x cheaper at ~$3/day.
+
+For most queries ("What's our return policy?" "Is this item in stock?"), GPT-4o-mini performs identically. Model selection is configurable so teams can choose. Technical support might need GPT-4o's reasoning; general customer service doesn't.
+
+**2. The 15-Minute Session Timeout**
+
+OpenAI expires connections after 15 minutes. If you let it timeout, agents see an error mid-call.
+
+Solution: Reconnect proactively at 10 minutes, but only when idle. The system checks: "Has it been 10 minutes? Is the agent between calls?" If yes, reconnect in the background and reload the company context. Invisible to users, no interruptions.
+
+**3. State Synchronization**
+
+When the UI says "listening" but the backend is paused, you've lost user trust.
+
+Solution: No optimistic updates. The frontend waits for backend confirmation before updating any state. Adds ~100ms latency to UI updates, but eliminates every sync bug.
+
+**4. Audio Buffer Race Conditions**
+
+When users pause mid-audio-processing, two threads access the same buffer simultaneously—one writing, one clearing.
+
+Solution: Lock-based protection (`asyncio.Lock`). Simple, but the difference between corrupted audio and clean data.
+
 ## Prerequisites
 
 - **Python 3.10+** (recommended for dependency compatibility)
